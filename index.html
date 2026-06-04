@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Angle Meter</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AngleMeter">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      touch-action: manipulation;
+    }
+
+    #camera {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* ---------- PERMISSION SCREEN ---------- */
+    #permission-screen {
+      position: absolute;
+      inset: 0;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 40px 32px;
+      text-align: center;
+    }
+
+    #permission-screen h1 { color: #fff; font-size: 22px; font-weight: 700; }
+
+    #permission-screen p {
+      color: rgba(255,255,255,0.6);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    #start-btn {
+      margin-top: 8px;
+      background: #0A84FF;
+      color: #fff;
+      border: none;
+      padding: 15px 44px;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #start-btn:active { opacity: 0.8; }
+
+    #error-msg { color: #FF453A; font-size: 14px; min-height: 20px; }
+
+    /* ---------- OVERLAY ---------- */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 20px 36px;
+      pointer-events: none;
+    }
+
+    /* Top area: tab bar + mode display */
+    #top-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+
+    /* Tab bar */
+    #tab-bar {
+      display: flex;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 3px;
+      gap: 2px;
+      pointer-events: all;
+    }
+
+    .tab-btn {
+      padding: 8px 22px;
+      border: none;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab-btn.active {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+    }
+
+    /* Shared display box style */
+    .display-box {
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      padding: 12px 28px;
+      text-align: center;
+    }
+
+    .display-value {
+      font-size: 52px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .display-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px;
+      height: 56px;
+      pointer-events: none;
+    }
+
+    .ch-h, .ch-v {
+      position: absolute;
+      background: rgba(255, 230, 0, 0.9);
+    }
+
+    .ch-h {
+      width: 100%; height: 1.5px;
+      top: 50%; left: 0;
+      transform: translateY(-50%);
+    }
+
+    .ch-v {
+      width: 1.5px; height: 100%;
+      left: 50%; top: 0;
+      transform: translateX(-50%);
+    }
+
+    .ch-dot {
+      position: absolute;
+      width: 5px; height: 5px;
+      background: rgba(255, 230, 0, 1);
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Horizon line (elevation mode only) */
+    #horizon {
+      position: absolute;
+      left: 8%; right: 8%;
+      height: 1px;
+      background: rgba(0, 200, 255, 0.65);
+      pointer-events: none;
+      transition: top 0.05s linear;
+    }
+
+    #horizon::before, #horizon::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      width: 8px; height: 7px;
+      background: rgba(0, 200, 255, 0.65);
+    }
+
+    #horizon::before { left: 0; }
+    #horizon::after  { right: 0; }
+
+    #horizon-label {
+      position: absolute;
+      right: calc(8% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(0, 200, 255, 0.8);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      background: rgba(0,0,0,0.35);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    /* ---------- BOTTOM CONTROLS ---------- */
+    #bottom-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+    }
+
+    /* --- Elevation controls --- */
+    #elev-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      pointer-events: all;
+    }
+
+    #captures {
+      width: 100%;
+      max-height: 110px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 0 14px;
+      display: none;
+    }
+
+    .cap-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .cap-item:last-child { border-bottom: none; }
+    .cap-item .cap-num { color: rgba(255,255,255,0.4); font-size: 12px; }
+    .cap-item .cap-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    #capture-btn {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      background: transparent;
+      border: 3px solid rgba(255,255,255,0.85);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.08s;
+    }
+
+    #capture-btn:active { transform: scale(0.88); }
+
+    #capture-btn-inner {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+    }
+
+    /* --- Horizontal controls --- */
+    #horiz-controls {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      pointer-events: all;
+    }
+
+    /* Delta result panel */
+    #delta-panel {
+      width: 100%;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 14px;
+      padding: 14px 16px 10px;
+    }
+
+    #delta-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dp {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .dp-letter {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    #dp-a .dp-letter { color: #FF9F0A; }
+    #dp-b .dp-letter { color: #30D158; }
+
+    .dp-val {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #dp-delta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0px;
+    }
+
+    #delta-num {
+      font-size: 34px;
+      font-weight: 700;
+      color: #FFD60A;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    #delta-dir {
+      font-size: 18px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1;
+    }
+
+    #delta-hint {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* Mark A / Mark B buttons */
+    #mark-buttons {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .mark-btn {
+      flex: 1;
+      padding: 15px 10px;
+      border-radius: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.08s, border-color 0.15s, background 0.15s;
+      line-height: 1.3;
+    }
+
+    .mark-btn:active { transform: scale(0.94); }
+
+    #mark-a-btn.marked { border-color: rgba(255,159,10,0.7); background: rgba(255,159,10,0.15); }
+    #mark-b-btn.marked { border-color: rgba(48,209,88,0.7);  background: rgba(48,209,88,0.15); }
+
+    .mark-letter { font-size: 20px; display: block; }
+    #mark-a-btn .mark-letter { color: #FF9F0A; }
+    #mark-b-btn .mark-letter { color: #30D158; }
+
+    /* Height / distance row */
+    #dist-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 10px 14px;
+    }
+
+    #dist-row label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #dist-input {
+      flex: 1;
+      min-width: 0;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      padding: 6px 10px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      -webkit-appearance: none;
+    }
+
+    #dist-input::placeholder { color: rgba(255,255,255,0.25); }
+    #dist-input:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+
+    #unit-toggle {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #unit-toggle:active { background: rgba(255,255,255,0.2); }
+
+    /* Live height inside elev-display */
+    #height-display {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+    }
+
+    #height-value {
+      font-size: 30px;
+      font-weight: 700;
+      color: #30D158;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    #height-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Height column in capture list */
+    .cap-height {
+      font-size: 13px;
+      font-weight: 600;
+      color: #30D158;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Flash feedback */
+    @keyframes flash {
+      0%   { color: #30D158; }
+      100% { color: #fff; }
+    }
+
+    .flash { animation: flash 0.35s ease-out forwards; }
+  </style>
+</head>
+<body>
+
+<!-- Permission / start screen -->
+<div id="permission-screen">
+  <h1>Angle Meter</h1>
+  <p>
+    <strong style="color:#fff">Elevation:</strong> point at a target and capture its vertical angle.<br><br>
+    <strong style="color:#fff">Horizontal:</strong> mark two points and measure the angle between them.<br><br>
+    Hold the phone in portrait orientation for best results.
+  </p>
+  <button id="start-btn">Start</button>
+  <p id="error-msg"></p>
+</div>
+
+<!-- Camera -->
+<video id="camera" autoplay playsinline muted style="display:none"></video>
+
+<!-- Main overlay -->
+<div id="overlay">
+
+  <!-- Top: tab bar + mode display -->
+  <div id="top-area">
+    <div id="tab-bar">
+      <button class="tab-btn active" id="tab-elev">Elevation</button>
+      <button class="tab-btn"        id="tab-horiz">Horizontal</button>
+    </div>
+
+    <!-- Elevation: live angle + optional height -->
+    <div id="elev-display" class="display-box">
+      <div id="angle-value" class="display-value">--°</div>
+      <div class="display-label">Elevation angle</div>
+      <div id="height-display">
+        <div id="height-value">--</div>
+        <div id="height-label">Height above eye</div>
+      </div>
+    </div>
+
+    <!-- Horizontal: live bearing -->
+    <div id="bearing-display" class="display-box" style="display:none">
+      <div id="bearing-value" class="display-value">--°</div>
+      <div class="display-label">Bearing</div>
+    </div>
+  </div>
+
+  <!-- Crosshair (always centred, absolutely positioned) -->
+  <div id="crosshair">
+    <div class="ch-h"></div>
+    <div class="ch-v"></div>
+    <div class="ch-dot"></div>
+  </div>
+
+  <!-- Horizon line (elevation mode) -->
+  <div id="horizon">
+    <span id="horizon-label">0°</span>
+  </div>
+
+  <!-- Bottom controls -->
+  <div id="bottom-controls">
+
+    <!-- Elevation controls -->
+    <div id="elev-controls">
+      <div id="dist-row">
+        <label for="dist-input">Distance</label>
+        <input id="dist-input" type="number" min="0" step="any" placeholder="0" inputmode="decimal">
+        <button id="unit-toggle">m</button>
+      </div>
+      <div id="captures"></div>
+      <button id="capture-btn" aria-label="Capture elevation angle">
+        <div id="capture-btn-inner"></div>
+      </button>
+    </div>
+
+    <!-- Horizontal controls -->
+    <div id="horiz-controls">
+      <div id="delta-panel">
+        <div id="delta-grid">
+          <div class="dp" id="dp-a">
+            <span class="dp-letter">A</span>
+            <span class="dp-val" id="dp-a-val">--</span>
+          </div>
+          <div id="dp-delta">
+            <span id="delta-num">--°</span>
+            <span id="delta-dir"></span>
+          </div>
+          <div class="dp" id="dp-b">
+            <span class="dp-letter">B</span>
+            <span class="dp-val" id="dp-b-val">--</span>
+          </div>
+        </div>
+        <div id="delta-hint">Aim at a point and press Mark A, then aim at another and press Mark B</div>
+      </div>
+
+      <div id="mark-buttons">
+        <button class="mark-btn" id="mark-a-btn">
+          <span class="mark-letter">A</span>Mark A
+        </button>
+        <button class="mark-btn" id="mark-b-btn">
+          <span class="mark-letter">B</span>Mark B
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const permScreen   = document.getElementById('permission-screen');
+  const startBtn     = document.getElementById('start-btn');
+  const errorMsg     = document.getElementById('error-msg');
+  const cameraEl     = document.getElementById('camera');
+  const overlay      = document.getElementById('overlay');
+  const horizonEl    = document.getElementById('horizon');
+
+  // Elevation elements
+  const angleValue    = document.getElementById('angle-value');
+  const captureBtn    = document.getElementById('capture-btn');
+  const capturesDiv   = document.getElementById('captures');
+  const elevDisplay   = document.getElementById('elev-display');
+  const elevControls  = document.getElementById('elev-controls');
+  const distInput     = document.getElementById('dist-input');
+  const unitToggle    = document.getElementById('unit-toggle');
+  const heightDisplay = document.getElementById('height-display');
+  const heightValue   = document.getElementById('height-value');
+
+  // Horizontal elements
+  const bearingValue  = document.getElementById('bearing-value');
+  const bearingDisplay = document.getElementById('bearing-display');
+  const horizControls = document.getElementById('horiz-controls');
+  const markABtn      = document.getElementById('mark-a-btn');
+  const markBBtn      = document.getElementById('mark-b-btn');
+  const dpAVal        = document.getElementById('dp-a-val');
+  const dpBVal        = document.getElementById('dp-b-val');
+  const deltaNumb     = document.getElementById('delta-num');
+  const deltaDir      = document.getElementById('delta-dir');
+  const deltaHint     = document.getElementById('delta-hint');
+
+  // Tabs
+  const tabElev  = document.getElementById('tab-elev');
+  const tabHoriz = document.getElementById('tab-horiz');
+
+  // State
+  let smoothedBeta  = null;
+  let smoothedAlpha = null;
+  let currentElev   = 0;
+  let currentBear   = 0;
+  let markedA       = null;
+  let markedB       = null;
+  let captureCount  = 0;
+  let mode          = 'elevation';
+  let distUnit      = 'm';
+
+  const SMOOTH_ELEV = 0.12;
+  const SMOOTH_BEAR = 0.15;
+  const VFOV_HALF   = 30; // approximate half-FoV in degrees (portrait)
+
+  // ---------- Start ----------
+  startBtn.addEventListener('click', async () => {
+    startBtn.disabled = true;
+    errorMsg.textContent = '';
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+        audio: false
+      });
+      cameraEl.srcObject = stream;
+      cameraEl.style.display = 'block';
+
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const perm = await DeviceOrientationEvent.requestPermission();
+        if (perm !== 'granted') throw new Error('Motion sensor access denied.');
+      }
+
+      // Prefer absolute (tilt-compensated compass) — works upright on Android
+      let gotAbsolute = false;
+      window.addEventListener('deviceorientationabsolute', (e) => {
+        gotAbsolute = true;
+        onOrientation(e);
+      }, true);
+      // Fallback for iOS (uses webkitCompassHeading) and non-absolute Android
+      window.addEventListener('deviceorientation', (e) => {
+        if (!gotAbsolute) onOrientation(e);
+      }, true);
+
+      permScreen.style.display = 'none';
+      overlay.style.display    = 'flex';
+    } catch (err) {
+      startBtn.disabled = false;
+      errorMsg.textContent = err.message || 'Could not access camera or sensors.';
+    }
+  });
+
+  // ---------- Orientation ----------
+  function onOrientation(e) {
+    // Beta → elevation
+    if (e.beta !== null) {
+      if (smoothedBeta === null) smoothedBeta = e.beta;
+      smoothedBeta = SMOOTH_ELEV * e.beta + (1 - SMOOTH_ELEV) * smoothedBeta;
+
+      let elev = Math.max(-90, Math.min(90, smoothedBeta - 90));
+      currentElev = elev;
+
+      if (mode === 'elevation') {
+        const sign = elev >= 0 ? '+' : '';
+        angleValue.textContent = `${sign}${elev.toFixed(1)}°`;
+
+        const screenH = window.innerHeight;
+        const offsetPx = (elev / VFOV_HALF) * (screenH / 2);
+        const top = Math.max(0, Math.min(screenH, screenH / 2 + offsetPx));
+        horizonEl.style.top = `${top}px`;
+
+        updateLiveHeight();
+      }
+    }
+
+    // Bearing — works regardless of phone tilt/orientation
+    let rawBear = null;
+    if (typeof e.webkitCompassHeading === 'number') {
+      // iOS: already tilt-compensated compass heading
+      rawBear = e.webkitCompassHeading;
+    } else if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
+      // Android: compute azimuth from full rotation so it works upright
+      rawBear = computeAzimuth(e.alpha, e.beta, e.gamma);
+    }
+
+    if (rawBear !== null) {
+      if (smoothedAlpha === null) {
+        smoothedAlpha = rawBear;
+      } else {
+        let diff = rawBear - smoothedAlpha;
+        if (diff >  180) diff -= 360;
+        if (diff < -180) diff += 360;
+        smoothedAlpha = ((smoothedAlpha + SMOOTH_BEAR * diff) + 360) % 360;
+      }
+      currentBear = smoothedAlpha;
+
+      if (mode === 'horizontal') {
+        bearingValue.textContent = `${currentBear.toFixed(1)}°`;
+      }
+    }
+  }
+
+  // Tilt-compensated azimuth from DeviceOrientationEvent angles.
+  // Works at any phone orientation, including upright portrait.
+  function computeAzimuth(alpha, beta, gamma) {
+    const toRad = Math.PI / 180;
+    const a = alpha * toRad, b = beta * toRad, g = gamma * toRad;
+    const cosB = Math.cos(b), sinB = Math.sin(b);
+    const cosG = Math.cos(g), sinG = Math.sin(g);
+    const cosA = Math.cos(a), sinA = Math.sin(a);
+    // Forward vector of the camera in world frame
+    const x =  cosA * sinG + sinA * cosG * sinB;
+    const y =  sinA * sinG - cosA * cosG * sinB;
+    let az = Math.atan2(x, -y) * 180 / Math.PI;
+    return (az + 360) % 360;
+  }
+
+  // ---------- Tab switching ----------
+  tabElev.addEventListener('click', () => setMode('elevation'));
+  tabHoriz.addEventListener('click', () => setMode('horizontal'));
+
+  function setMode(m) {
+    mode = m;
+    const isElev = m === 'elevation';
+
+    tabElev.classList.toggle('active', isElev);
+    tabHoriz.classList.toggle('active', !isElev);
+
+    elevDisplay.style.display  = isElev ? 'block' : 'none';
+    bearingDisplay.style.display = isElev ? 'none' : 'block';
+
+    elevControls.style.display  = isElev ? 'flex' : 'none';
+    horizControls.style.display = isElev ? 'none' : 'flex';
+
+    horizonEl.style.display = isElev ? 'block' : 'none';
+  }
+
+  // ---------- Distance / height helpers ----------
+  function getDistMeters() {
+    const val = parseFloat(distInput.value);
+    if (!val || val <= 0) return null;
+    return distUnit === 'ft' ? val * 0.3048 : val;
+  }
+
+  function formatHeight(hMeters) {
+    if (distUnit === 'ft') return `${(hMeters / 0.3048).toFixed(1)} ft`;
+    return `${hMeters.toFixed(1)} m`;
+  }
+
+  function updateLiveHeight() {
+    const dist = getDistMeters();
+    if (dist !== null) {
+      const h = dist * Math.tan(currentElev * Math.PI / 180);
+      heightValue.textContent = formatHeight(h);
+      heightDisplay.style.display = 'block';
+    } else {
+      heightDisplay.style.display = 'none';
+    }
+  }
+
+  unitToggle.addEventListener('click', () => {
+    distUnit = distUnit === 'm' ? 'ft' : 'm';
+    unitToggle.textContent = distUnit;
+    updateLiveHeight();
+  });
+
+  distInput.addEventListener('input', updateLiveHeight);
+
+  // ---------- Elevation: capture ----------
+  captureBtn.addEventListener('click', () => {
+    captureCount++;
+    const sign = currentElev >= 0 ? '+' : '';
+    const valStr = `${sign}${currentElev.toFixed(1)}°`;
+
+    const dist = getDistMeters();
+    const heightStr = dist !== null
+      ? formatHeight(dist * Math.tan(currentElev * Math.PI / 180))
+      : '';
+
+    const item = document.createElement('div');
+    item.className = 'cap-item';
+    item.innerHTML = `<span class="cap-num">#${captureCount}</span>
+                      <span class="cap-val">${valStr}</span>
+                      ${heightStr ? `<span class="cap-height">${heightStr}</span>` : ''}`;
+    capturesDiv.style.display = 'block';
+    capturesDiv.prepend(item);
+
+    angleValue.classList.remove('flash');
+    void angleValue.offsetWidth;
+    angleValue.classList.add('flash');
+  });
+
+  // ---------- Horizontal: mark A / B ----------
+  markABtn.addEventListener('click', () => {
+    markedA = currentBear;
+    dpAVal.textContent = `${markedA.toFixed(1)}°`;
+    markABtn.classList.add('marked');
+    updateDelta();
+  });
+
+  markBBtn.addEventListener('click', () => {
+    markedB = currentBear;
+    dpBVal.textContent = `${markedB.toFixed(1)}°`;
+    markBBtn.classList.add('marked');
+    updateDelta();
+  });
+
+  function updateDelta() {
+    if (markedA === null || markedB === null) {
+      if (markedA !== null) deltaHint.textContent = 'A marked — now aim at B and press Mark B';
+      return;
+    }
+
+    let diff = markedB - markedA;
+    if (diff >  180) diff -= 360;
+    if (diff < -180) diff += 360;
+
+    const absDiff = Math.abs(diff);
+    deltaNumb.textContent = `${absDiff.toFixed(1)}°`;
+    // diff > 0 → B is clockwise from A; diff < 0 → B is counter-clockwise
+    deltaDir.textContent = diff >= 0 ? 'A → B' : 'A ← B';
+    deltaHint.textContent = diff >= 0
+      ? 'B is clockwise from A'
+      : 'B is counter-clockwise from A';
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+</script>
+</body>
+</html>
