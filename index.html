@@ -1793,11 +1793,11 @@
     if (!xrSession) return;
     xrSession.requestAnimationFrame(onARFrame);
 
-    // Clear to transparent so the AR camera passthrough shows through.
+    // Bind the XR framebuffer — ARCore has already written the camera feed into it.
+    // Only clear depth; clearing color would erase the camera passthrough.
     const layer = xrSession.renderState.baseLayer;
     xrGl.bindFramebuffer(xrGl.FRAMEBUFFER, layer.framebuffer);
-    xrGl.clearColor(0, 0, 0, 0);
-    xrGl.clear(xrGl.COLOR_BUFFER_BIT | xrGl.DEPTH_BUFFER_BIT);
+    xrGl.clear(xrGl.DEPTH_BUFFER_BIT);
 
     if (!xrHitSource) return;
     const hits       = frame.getHitTestResults(xrHitSource);
