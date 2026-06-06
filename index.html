@@ -1710,11 +1710,18 @@
     clearARError();
     arStartBtn.disabled = true;
     arStartBtn.textContent = 'Starting…';
+
+    const permHintTimer = setTimeout(() => {
+      showARError('Waiting for permission… check for a dialog or banner at the top of your screen and tap Allow.');
+    }, 2500);
+
     try {
       xrSession = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'dom-overlay'],
         domOverlay: { root: arOverlay }
       });
+      clearTimeout(permHintTimer);
+      clearARError();
 
       xrLocalSpace = await xrSession.requestReferenceSpace('local');
       const viewer = await xrSession.requestReferenceSpace('viewer');
@@ -1727,6 +1734,7 @@
       xrSession.addEventListener('end', onAREnd);
       xrSession.requestAnimationFrame(onARFrame);
     } catch (err) {
+      clearTimeout(permHintTimer);
       if (xrSession) { xrSession.end(); xrSession = null; }
       onAREnd();
       arStartBtn.disabled = false;
