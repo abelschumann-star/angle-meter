@@ -792,6 +792,18 @@
       line-height: 1.6;
     }
 
+    #ar-error-text {
+      font-size: 13px;
+      color: #FF453A;
+      text-align: center;
+      line-height: 1.6;
+      display: none;
+      background: rgba(255,69,58,0.12);
+      border-radius: 10px;
+      padding: 10px 14px;
+      width: 100%;
+    }
+
     /* AR session full-screen overlay */
     #ar-overlay {
       display: none;
@@ -1094,6 +1106,7 @@
       <div id="ar-mode">
         <button id="ar-start-btn">Start AR Measurement</button>
         <p id="ar-hint-text">Point the camera at a surface and read the live distance.<br>Android Chrome + ARCore required.</p>
+        <p id="ar-error-text"></p>
       </div>
 
     </div>
@@ -1667,40 +1680,63 @@
   }
 
   // ---------- AR (WebXR hit-test) ----------
-  async function checkARSupport() {
-    if (!navigator.xr) { setARUnsupported(); return; }
-    const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
-    if (!ok) setARUnsupported();
+  const arErrorText = document.getElementById('ar-error-text');
+
+  function showARError(msg) {
+    arErrorText.textContent = msg;
+    arErrorText.style.display = 'block';
   }
 
-  function setARUnsupported() {
+  function clearARError() {
+    arErrorText.textContent = '';
+    arErrorText.style.display = 'none';
+  }
+
+  async function checkARSupport() {
+    if (!navigator.xr) { setARUnsupported('WebXR not available — use Chrome on Android'); return; }
+    const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+    if (!ok) setARUnsupported('AR not supported on this device. Install "Google Play Services for AR" from the Play Store and try again.');
+  }
+
+  function setARUnsupported(msg) {
     arStartBtn.disabled = true;
-    arStartBtn.textContent = 'AR not supported on this device';
+    showARError(msg);
   }
 
   arStartBtn.addEventListener('click', startAR);
   arStopBtn.addEventListener('click',  stopAR);
 
   async function startAR() {
+    clearARError();
+    arStartBtn.disabled = true;
+    arStartBtn.textContent = 'Starting…';
     try {
       xrSession = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'dom-overlay'],
         domOverlay: { root: arOverlay }
       });
-      arOverlay.style.display = 'block';
-      overlay.style.display   = 'none';
-      cameraEl.style.display  = 'none';
 
       xrLocalSpace = await xrSession.requestReferenceSpace('local');
       const viewer = await xrSession.requestReferenceSpace('viewer');
       xrHitSource  = await xrSession.requestHitTestSource({ space: viewer });
 
+      arOverlay.style.display = 'block';
+      overlay.style.display   = 'none';
+      cameraEl.style.display  = 'none';
+
       xrSession.addEventListener('end', onAREnd);
       xrSession.requestAnimationFrame(onARFrame);
     } catch (err) {
+      if (xrSession) { xrSession.end(); xrSession = null; }
       onAREnd();
-      arStartBtn.disabled = true;
-      arStartBtn.textContent = 'Could not start AR: ' + (err.message || 'unknown error');
+      arStartBtn.disabled = false;
+      arStartBtn.textContent = 'Start AR Measurement';
+      const msg = err.message || String(err);
+      showARError(
+        msg.includes('denied') || msg.includes('ermission')
+          ? 'Camera permission denied. Allow camera access and try again.'
+          : 'Could not start AR: ' + msg
+      );
     }
   }
 
@@ -1729,6 +1765,8 @@
     xrSession    = null;
     xrHitSource  = null;
     xrLocalSpace = null;
+    arStartBtn.disabled = false;
+    arStartBtn.textContent = 'Start AR Measurement';
   }
 
   if ('serviceWorker' in navigator) {
