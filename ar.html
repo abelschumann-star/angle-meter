@@ -152,12 +152,16 @@
 
   // Exponential smoothing to steady the readout.
   let smoothD = null;
-  function showDistance(d, method) {
+  function showDistance(d, method, confident) {
     smoothD = smoothD === null ? d : 0.3 * d + 0.7 * smoothD;
     distNum.textContent = smoothD.toFixed(2) + ' m';
-    methodEl.textContent = method;
+    methodEl.textContent = method + (confident ? '' : ' · low confidence');
+    methodEl.style.color = confident ? 'rgba(48,209,88,0.9)' : 'rgba(255,159,10,0.95)';
     scan.style.display = 'none';
     useBtn.disabled = false;
+    const col = confident ? '#30D158' : '#FF9F0A';
+    hitdot.style.borderColor = col;
+    hitdot.style.background  = confident ? 'rgba(48,209,88,0.12)' : 'rgba(255,159,10,0.12)';
   }
   function noReading() {
     smoothD = null;
@@ -241,16 +245,15 @@
     if (!pose) { noReading(); hitdot.style.display = 'none'; return; }
     const view = pose.views[0];
 
-    // --- 1. Depth sensing (works on any surface, no plane needed) ---
-    // The measurement zone is a fixed box (in screen pixels) at the center.
-    // Whatever is inside this box is sampled; the on-screen box shows exactly
-    // that region. We bias toward the nearest surface so a foreground object
-    // (e.g. a pillar) wins over the wall behind it.
-    const ZONE_PX = 22;                       // half-size of the measurement box
+    // ===== Run BOTH methods, then pick automatically =====
+
+    // --- A. Depth sensing: sample a small box at the center reticle ---
+    // depthNear (20th pct) = nearest surface in the box (foreground bias);
+    // relSpread = how scattered the samples are = a depth-quality proxy.
+    const ZONE_PX = 22;
     const rx = ZONE_PX / window.innerWidth;
     const ry = ZONE_PX / window.innerHeight;
-
-    let depthMeters = null;
+    let depthNear = null, relSpread = 1;
     if (frame.getDepthInformation) {
       try {
         const depthInfo = frame.getDepthInformation(view);
@@ -260,62 +263,82 @@
           const N = 3;
           for (let ix = -N; ix <= N; ix++) {
             for (let iy = -N; iy <= N; iy++) {
-              const vx = 0.5 + (ix / N) * rx;
-              const vy = 0.5 + (iy / N) * ry;
-              const c = mulVec(t, [vx, vy, 0, 1]);
+              const c = mulVec(t, [0.5 + (ix / N) * rx, 0.5 + (iy / N) * ry, 0, 1]);
               const dz = depthInfo.getDepthInMeters(c[0], c[1]);
               if (dz > 0 && isFinite(dz)) samples.push(dz);
             }
           }
           if (samples.length) {
             samples.sort((a, b) => a - b);
-            // 20th percentile ≈ nearest surface in the box, but robust to a
-            // single spurious too-near pixel.
-            depthMeters = samples[Math.floor(0.2 * (samples.length - 1))];
+            const p = q => samples[Math.floor(q * (samples.length - 1))];
+            depthNear = p(0.2);
+            const med = p(0.5);
+            relSpread = med > 0 ? (p(0.8) - p(0.2)) / med : 1;
           }
         }
-      } catch (e) { /* depth not available this frame */ }
+      } catch (e) { /* no depth this frame */ }
+    }
+    const depthConsistent = depthNear !== null && relSpread < 0.15;
+
+    // --- B. Plane / feature hit-test (only returns when ARCore is confident) ---
+    let planeMeters = null, planeScreen = null;
+    const hits = frame.getHitTestResults(hitSource);
+    if (hits.length > 0) {
+      const h = hits[0].getPose(refSpace).transform.position;
+      const c = pose.transform.position;
+      planeMeters = Math.hypot(h.x - c.x, h.y - c.y, h.z - c.z);
+      const vClip = mulVec(view.projectionMatrix, mulVec(view.transform.inverse.matrix, [h.x, h.y, h.z, 1]));
+      if (vClip[3] > 0) {
+        planeScreen = {
+          x: (vClip[0] / vClip[3] * 0.5 + 0.5) * window.innerWidth,
+          y: (1 - (vClip[1] / vClip[3] * 0.5 + 0.5)) * window.innerHeight
+        };
+      }
     }
 
-    if (depthMeters !== null) {
-      showDistance(depthMeters, 'depth');
-      // Draw the measurement box exactly over the sampled region.
+    // --- C. Choose the more trustworthy reading ---
+    const haveDepth = depthNear !== null;
+    const havePlane = planeMeters !== null;
+    let value = null, method = '', confident = false, atCenter = true;
+
+    if (haveDepth && havePlane) {
+      const rel = Math.abs(depthNear - planeMeters) / Math.min(depthNear, planeMeters);
+      if (rel < 0.10) {
+        // Both agree → strongest signal. Average them.
+        value = (depthNear + planeMeters) / 2; method = 'depth+plane'; confident = true;
+      } else if (depthConsistent && depthNear < 5) {
+        // Disagree, but depth is tight and in its good range (foreground object).
+        value = depthNear; method = 'depth'; confident = true;
+      } else {
+        // Depth scattered or far → trust the fitted plane.
+        value = planeMeters; method = 'plane'; confident = true; atCenter = false;
+      }
+    } else if (haveDepth) {
+      value = depthNear; method = 'depth';
+      confident = depthConsistent && depthNear < 6;
+    } else if (havePlane) {
+      value = planeMeters; method = 'plane'; confident = true; atCenter = false;
+    } else {
+      noReading(); hitdot.style.display = 'none'; return;
+    }
+
+    showDistance(value, method, confident);
+
+    // --- D. Indicator: box on the sampled zone, or dot on the plane hit ---
+    if (atCenter || !planeScreen) {
       hitdot.style.left = '50%';
       hitdot.style.top  = '50%';
       hitdot.style.width  = (2 * ZONE_PX) + 'px';
       hitdot.style.height = (2 * ZONE_PX) + 'px';
       hitdot.style.borderRadius = '4px';
-      hitdot.style.display = 'block';
-      return;
-    }
-
-    // --- 2. Fallback: plane/feature hit-test ---
-    const hits = frame.getHitTestResults(hitSource);
-    if (hits.length > 0) {
-      const h = hits[0].getPose(refSpace).transform.position;
-      const c = pose.transform.position;
-      const d = Math.hypot(h.x - c.x, h.y - c.y, h.z - c.z);
-      showDistance(d, 'plane');
-
-      // Project the world-space hit point onto the screen and place the dot.
-      const vEye  = mulVec(view.transform.inverse.matrix, [h.x, h.y, h.z, 1]);
-      const vClip = mulVec(view.projectionMatrix, vEye);
-      if (vClip[3] > 0) {
-        const nx = vClip[0] / vClip[3];
-        const ny = vClip[1] / vClip[3];
-        hitdot.style.width  = '16px';
-        hitdot.style.height = '16px';
-        hitdot.style.borderRadius = '50%';
-        hitdot.style.left = ((nx * 0.5 + 0.5) * window.innerWidth)  + 'px';
-        hitdot.style.top  = ((1 - (ny * 0.5 + 0.5)) * window.innerHeight) + 'px';
-        hitdot.style.display = 'block';
-      } else {
-        hitdot.style.display = 'none';
-      }
     } else {
-      noReading();
-      hitdot.style.display = 'none';
+      hitdot.style.left = planeScreen.x + 'px';
+      hitdot.style.top  = planeScreen.y + 'px';
+      hitdot.style.width  = '16px';
+      hitdot.style.height = '16px';
+      hitdot.style.borderRadius = '50%';
     }
+    hitdot.style.display = 'block';
   }
 
   function onEnd() {
