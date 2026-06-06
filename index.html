@@ -1235,7 +1235,7 @@
   // app (skipping the Start tap) so we land on the right tab with the distance
   // already filled. If auto-start is blocked (e.g. needs a gesture), the
   // permission screen stays and the measurement is applied on manual Start.
-  if (localStorage.getItem('measuredDistanceM') !== null) {
+  if (pendingMeasure()) {
     startApp().catch(() => { startBtn.disabled = false; });
   }
 
@@ -1679,10 +1679,8 @@
   // WebXR needs exclusive camera access, so AR lives on its own page. We open
   // it, optionally tagging where a measured distance should flow back to.
   function openARPage(returnMode) {
-    if (returnMode) localStorage.setItem('measureReturnMode', returnMode);
-    else            localStorage.removeItem('measureReturnMode');
     releaseCamera();
-    location.href = './ar.html';
+    location.href = './ar.html?return=' + (returnMode || 'elevation');
   }
 
   arStartBtn.addEventListener('click', () => openARPage(null));
@@ -1711,19 +1709,26 @@
       distInput.value = m;
       updateLiveHeight();
     }
+    const dest = ret === 'height' ? 'Height' : 'Elevation';
     setMode(ret === 'height' ? 'height' : 'elevation');
-    toast(`Distance ${m} m applied`);
+    toast(`Distance ${m} m → ${dest}`);
   }
 
-  // When returning from ar.html with a measured distance, drop it into the
-  // distance field of whichever tab requested it.
+  // When returning from ar.html (URL: ./?d=<metres>&return=<tab>), drop the
+  // measured distance into the field of whichever tab requested it.
+  function pendingMeasure() {
+    const p = new URLSearchParams(location.search);
+    if (p.get('d') === null) return null;
+    const m = parseFloat(p.get('d'));
+    if (!isFinite(m) || m <= 0) return null;
+    return { m, ret: p.get('return') || 'elevation' };
+  }
+
   function applyMeasuredDistance() {
-    const md = localStorage.getItem('measuredDistanceM');
-    if (md === null) return;
-    localStorage.removeItem('measuredDistanceM');
-    const ret = localStorage.getItem('measureReturnMode') || 'elevation';
-    localStorage.removeItem('measureReturnMode');
-    fillDistance(parseFloat(md), ret);
+    const pm = pendingMeasure();
+    if (!pm) return;
+    history.replaceState({}, '', location.pathname);   // clean the URL
+    fillDistance(pm.m, pm.ret);
   }
 
   // ---------- Lightweight toast ----------

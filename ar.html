@@ -188,11 +188,13 @@
   startBtn.addEventListener('click', start);
   stopBtn.addEventListener('click', () => session && session.end());
 
-  // Send the current reading back to the app and return there.
+  // Send the current reading back to the app via the URL, preserving which tab
+  // requested it (passed in as ?return=…), and return there.
   useBtn.addEventListener('click', () => {
-    if (smoothD != null) localStorage.setItem('measuredDistanceM', smoothD.toFixed(3));
+    if (smoothD == null) return;
+    const ret = new URLSearchParams(location.search).get('return') || 'elevation';
     if (session) session.end();
-    location.href = './';
+    location.href = './?d=' + smoothD.toFixed(3) + '&return=' + ret;
   });
 
   async function start() {
