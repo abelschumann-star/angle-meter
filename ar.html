@@ -226,7 +226,7 @@
           const samples = [];
           for (let dx = -2; dx <= 2; dx++) {
             for (let dy = -2; dy <= 2; dy++) {
-              const c = mulVec(t, [0.5 + dx * 0.005, 0.5 + dy * 0.005, 0, 1]);
+              const c = mulVec(t, [0.5 + dx * 0.002, 0.5 + dy * 0.002, 0, 1]);
               const dz = depthInfo.getDepthInMeters(c[0], c[1]);
               if (dz > 0 && isFinite(dz)) samples.push(dz);
             }
