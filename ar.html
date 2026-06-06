@@ -62,13 +62,16 @@
     }
     #reticle::before { width: 18px; height: 1.5px; }
     #reticle::after  { width: 1.5px; height: 18px; }
+    /* Measurement zone — what's inside this box is what gets measured. */
     #hitdot {
       position: absolute; display: none;
-      width: 18px; height: 18px; margin: -9px 0 0 -9px;
-      border-radius: 50%;
-      background: rgba(48,209,88,0.5);
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
       border: 2px solid #30D158;
-      box-shadow: 0 0 0 2px rgba(0,0,0,0.4);
+      border-radius: 4px;
+      background: rgba(48,209,88,0.12);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.5);
+      pointer-events: none;
     }
     #scan {
       position: absolute; bottom: 110px; left: 50%;
@@ -215,25 +218,36 @@
     const view = pose.views[0];
 
     // --- 1. Depth sensing (works on any surface, no plane needed) ---
+    // The measurement zone is a fixed box (in screen pixels) at the center.
+    // Whatever is inside this box is sampled; the on-screen box shows exactly
+    // that region. We bias toward the nearest surface so a foreground object
+    // (e.g. a pillar) wins over the wall behind it.
+    const ZONE_PX = 22;                       // half-size of the measurement box
+    const rx = ZONE_PX / window.innerWidth;
+    const ry = ZONE_PX / window.innerHeight;
+
     let depthMeters = null;
     if (frame.getDepthInformation) {
       try {
         const depthInfo = frame.getDepthInformation(view);
         if (depthInfo) {
-          // Sample a small cluster around the center reticle and take the
-          // median, so low-res depth noise/edges don't throw off the reading.
           const t = depthInfo.normDepthBufferFromNormView.matrix;
           const samples = [];
-          for (let dx = -2; dx <= 2; dx++) {
-            for (let dy = -2; dy <= 2; dy++) {
-              const c = mulVec(t, [0.5 + dx * 0.002, 0.5 + dy * 0.002, 0, 1]);
+          const N = 3;
+          for (let ix = -N; ix <= N; ix++) {
+            for (let iy = -N; iy <= N; iy++) {
+              const vx = 0.5 + (ix / N) * rx;
+              const vy = 0.5 + (iy / N) * ry;
+              const c = mulVec(t, [vx, vy, 0, 1]);
               const dz = depthInfo.getDepthInMeters(c[0], c[1]);
               if (dz > 0 && isFinite(dz)) samples.push(dz);
             }
           }
           if (samples.length) {
             samples.sort((a, b) => a - b);
-            depthMeters = samples[Math.floor(samples.length / 2)];
+            // 20th percentile ≈ nearest surface in the box, but robust to a
+            // single spurious too-near pixel.
+            depthMeters = samples[Math.floor(0.2 * (samples.length - 1))];
           }
         }
       } catch (e) { /* depth not available this frame */ }
@@ -241,9 +255,12 @@
 
     if (depthMeters !== null) {
       showDistance(depthMeters, 'depth');
-      // The measured point is the center reticle; keep the dot there.
-      hitdot.style.left = (window.innerWidth / 2) + 'px';
-      hitdot.style.top  = (window.innerHeight / 2) + 'px';
+      // Draw the measurement box exactly over the sampled region.
+      hitdot.style.left = '50%';
+      hitdot.style.top  = '50%';
+      hitdot.style.width  = (2 * ZONE_PX) + 'px';
+      hitdot.style.height = (2 * ZONE_PX) + 'px';
+      hitdot.style.borderRadius = '4px';
       hitdot.style.display = 'block';
       return;
     }
@@ -262,6 +279,9 @@
       if (vClip[3] > 0) {
         const nx = vClip[0] / vClip[3];
         const ny = vClip[1] / vClip[3];
+        hitdot.style.width  = '16px';
+        hitdot.style.height = '16px';
+        hitdot.style.borderRadius = '50%';
         hitdot.style.left = ((nx * 0.5 + 0.5) * window.innerWidth)  + 'px';
         hitdot.style.top  = ((1 - (ny * 0.5 + 0.5)) * window.innerHeight) + 'px';
         hitdot.style.display = 'block';
