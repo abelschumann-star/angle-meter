@@ -62,6 +62,14 @@
     }
     #reticle::before { width: 18px; height: 1.5px; }
     #reticle::after  { width: 1.5px; height: 18px; }
+    #hitdot {
+      position: absolute; display: none;
+      width: 18px; height: 18px; margin: -9px 0 0 -9px;
+      border-radius: 50%;
+      background: rgba(48,209,88,0.5);
+      border: 2px solid #30D158;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.4);
+    }
     #scan {
       position: absolute; bottom: 110px; left: 50%;
       transform: translateX(-50%);
@@ -97,6 +105,7 @@
     <div id="dist-lbl">Distance to surface</div>
   </div>
   <div id="reticle"></div>
+  <div id="hitdot"></div>
   <div id="scan">Slowly pan to scan surfaces</div>
   <button id="stop">Stop</button>
 </div>
@@ -110,6 +119,15 @@
   const distNum  = document.getElementById('dist-num');
   const scan     = document.getElementById('scan');
   const stopBtn  = document.getElementById('stop');
+  const hitdot   = document.getElementById('hitdot');
+
+  // Multiply a column-major mat4 (Float32Array[16]) by a vec4 → vec4.
+  function mulVec(m, v) {
+    const o = [0, 0, 0, 0];
+    for (let i = 0; i < 4; i++)
+      o[i] = m[i] * v[0] + m[4 + i] * v[1] + m[8 + i] * v[2] + m[12 + i] * v[3];
+    return o;
+  }
 
   let session, gl, refSpace, viewerSpace, hitSource;
 
@@ -186,8 +204,23 @@
       const d = Math.hypot(h.x - c.x, h.y - c.y, h.z - c.z);
       distNum.textContent = d.toFixed(2) + ' m';
       scan.style.display = 'none';
+
+      // Project the world-space hit point onto the screen and place the dot.
+      const view = pose.views[0];
+      const vEye  = mulVec(view.transform.inverse.matrix, [h.x, h.y, h.z, 1]);
+      const vClip = mulVec(view.projectionMatrix, vEye);
+      if (vClip[3] > 0) {
+        const nx = vClip[0] / vClip[3];
+        const ny = vClip[1] / vClip[3];
+        hitdot.style.left = ((nx * 0.5 + 0.5) * window.innerWidth)  + 'px';
+        hitdot.style.top  = ((1 - (ny * 0.5 + 0.5)) * window.innerHeight) + 'px';
+        hitdot.style.display = 'block';
+      } else {
+        hitdot.style.display = 'none';
+      }
     } else {
       scan.style.display = 'block';
+      hitdot.style.display = 'none';
     }
   }
 
