@@ -1107,7 +1107,6 @@
         <button id="ar-start-btn">Start AR Measurement</button>
         <p id="ar-hint-text">Point the camera at a surface and read the live distance.<br>Android Chrome + ARCore required.</p>
         <p id="ar-error-text"></p>
-        <p style="font-size:11px;color:rgba(255,255,255,0.3)">build 16</p>
       </div>
 
     </div>
@@ -1592,7 +1591,8 @@
     dsubAr.classList.toggle('active',  m === 'ar');
     gpsModeDiv.style.display = m === 'gps' ? 'flex' : 'none';
     arModeDiv.style.display  = m === 'ar'  ? 'flex' : 'none';
-    if (m === 'ar') checkARSupport();
+    // AR runs on a dedicated page (ar.html) so WebXR gets the camera with no
+    // getUserMedia conflict from this app. Support is checked there.
   }
 
   // ---------- GPS ----------
@@ -1718,7 +1718,11 @@
     showARError(msg);
   }
 
-  arStartBtn.addEventListener('click', startAR);
+  // Open the dedicated AR page. Stop our camera first so WebXR gets it cleanly.
+  arStartBtn.addEventListener('click', () => {
+    releaseCamera();
+    location.href = './ar.html';
+  });
   arStopBtn.addEventListener('click',  stopAR);
 
   // Persistent on-screen debug log (top-left, above everything).

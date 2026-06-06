@@ -1,5 +1,5 @@
-const CACHE = 'angle-meter-v3';
-const ASSETS = ['./', './index.html', './manifest.json', './sw.js', './icon-192.png', './icon-512.png'];
+const CACHE = 'angle-meter-v4';
+const ASSETS = ['./', './index.html', './ar.html', './manifest.json', './sw.js', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));

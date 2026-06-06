@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Distance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+
+    /* Landing screen */
+    #landing {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 18px; padding: 40px 32px; text-align: center;
+    }
+    #landing h1 { font-size: 22px; font-weight: 700; }
+    #landing p { color: rgba(255,255,255,0.6); font-size: 14px; line-height: 1.6; }
+    #start {
+      background: #0A84FF; color: #fff; border: none;
+      padding: 16px 44px; border-radius: 14px;
+      font-size: 17px; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #start:disabled { opacity: 0.4; }
+    #back {
+      background: transparent; color: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 12px 32px; border-radius: 12px;
+      font-size: 15px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #msg { color: #FF453A; font-size: 14px; min-height: 20px; }
+
+    /* AR DOM overlay (HUD) */
+    #hud { display: none; position: fixed; inset: 0; pointer-events: none; }
+    #dist-box {
+      position: absolute; top: 40px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border-radius: 16px; padding: 12px 28px;
+      text-align: center; white-space: nowrap;
+    }
+    #dist-num { font-size: 52px; font-weight: 700; color: #FFD60A; line-height: 1; font-variant-numeric: tabular-nums; }
+    #dist-lbl { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    #reticle {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      width: 56px; height: 56px;
+      border: 2px solid rgba(255,220,0,0.85); border-radius: 50%;
+    }
+    #reticle::before, #reticle::after {
+      content: ''; position: absolute; background: rgba(255,220,0,0.85);
+      top: 50%; left: 50%; transform: translate(-50%,-50%);
+    }
+    #reticle::before { width: 18px; height: 1.5px; }
+    #reticle::after  { width: 1.5px; height: 18px; }
+    #scan {
+      position: absolute; bottom: 110px; left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.75); font-size: 13px;
+      background: rgba(0,0,0,0.5); padding: 5px 14px; border-radius: 8px;
+      white-space: nowrap;
+    }
+    #stop {
+      position: absolute; bottom: 44px; left: 50%;
+      transform: translateX(-50%);
+      padding: 14px 44px; border-radius: 50px;
+      border: 2px solid rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.6); color: #fff;
+      font-size: 15px; font-weight: 600;
+      pointer-events: all; -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body>
+
+<div id="landing">
+  <h1>AR Distance</h1>
+  <p>Point your phone at a surface and read the live distance to it.<br>Tap below to start the AR session.</p>
+  <button id="start">Start AR</button>
+  <button id="back">← Back to app</button>
+  <p id="msg"></p>
+</div>
+
+<!-- DOM overlay shown during the AR session -->
+<div id="hud">
+  <div id="dist-box">
+    <div id="dist-num">--</div>
+    <div id="dist-lbl">Distance to surface</div>
+  </div>
+  <div id="reticle"></div>
+  <div id="scan">Slowly pan to scan surfaces</div>
+  <button id="stop">Stop</button>
+</div>
+
+<script>
+  const startBtn = document.getElementById('start');
+  const backBtn  = document.getElementById('back');
+  const msg      = document.getElementById('msg');
+  const landing  = document.getElementById('landing');
+  const hud      = document.getElementById('hud');
+  const distNum  = document.getElementById('dist-num');
+  const scan     = document.getElementById('scan');
+  const stopBtn  = document.getElementById('stop');
+
+  let session, gl, refSpace, viewerSpace, hitSource;
+
+  backBtn.addEventListener('click', () => { location.href = './'; });
+
+  // Check support up front.
+  (async () => {
+    if (!navigator.xr) { fail('WebXR not available. Use Chrome on Android.'); return; }
+    const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+    if (!ok) fail('AR not supported. Install "Google Play Services for AR" and use Chrome.');
+  })();
+
+  function fail(text) {
+    startBtn.disabled = true;
+    msg.textContent = text;
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', () => session && session.end());
+
+  async function start() {
+    startBtn.disabled = true;
+    msg.textContent = '';
+    try {
+      session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: hud }
+      });
+
+      const canvas = document.createElement('canvas');
+      gl = canvas.getContext('webgl2', { xrCompatible: true });
+      session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+
+      refSpace    = await session.requestReferenceSpace('local');
+      viewerSpace = await session.requestReferenceSpace('viewer');
+      hitSource   = await session.requestHitTestSource({ space: viewerSpace });
+
+      hud.style.display = 'block';
+      session.addEventListener('end', onEnd);
+      session.requestAnimationFrame(onFrame);
+    } catch (err) {
+      startBtn.disabled = false;
+      msg.textContent = 'Could not start AR — ' + (err.name || '') + ': ' + (err.message || err);
+    }
+  }
+
+  function onFrame(t, frame) {
+    if (!session) return;
+    session.requestAnimationFrame(onFrame);
+
+    const layer = session.renderState.baseLayer;
+    const pose  = frame.getViewerPose(refSpace);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+    if (pose) {
+      for (const view of pose.views) {
+        const vp = layer.getViewport(view);
+        gl.viewport(vp.x, vp.y, vp.width, vp.height);
+      }
+    }
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const hits = frame.getHitTestResults(hitSource);
+    if (hits.length > 0 && pose) {
+      const h = hits[0].getPose(refSpace).transform.position;
+      const c = pose.transform.position;
+      const d = Math.hypot(h.x - c.x, h.y - c.y, h.z - c.z);
+      distNum.textContent = d.toFixed(2) + ' m';
+      scan.style.display = 'none';
+    } else {
+      scan.style.display = 'block';
+    }
+  }
+
+  function onEnd() {
+    hud.style.display = 'none';
+    landing.style.display = 'flex';
+    startBtn.disabled = false;
+    session = hitSource = refSpace = viewerSpace = null;
+  }
+</script>
+</body>
+</html>
