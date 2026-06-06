@@ -1741,7 +1741,20 @@
   }
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // When a new version installs over an existing one, reload so the fresh
+      // code takes effect immediately (important for the installed PWA, which
+      // has no address bar to hard-refresh).
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            location.reload();
+          }
+        });
+      });
+    });
   }
 
   // ---------- Resume after returning from the AR page ----------
