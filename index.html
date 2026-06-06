@@ -1706,27 +1706,40 @@
   arStartBtn.addEventListener('click', startAR);
   arStopBtn.addEventListener('click',  stopAR);
 
+  function arStep(label) {
+    arErrorText.textContent = '⏳ ' + label;
+    arErrorText.style.display = 'block';
+    arErrorText.style.color = 'rgba(255,255,255,0.7)';
+    arErrorText.style.background = 'rgba(255,255,255,0.08)';
+  }
+
   async function startAR() {
     clearARError();
     arStartBtn.disabled = true;
     arStartBtn.textContent = 'Starting…';
+    arErrorText.style.color = '';        // reset to red for real errors
+    arErrorText.style.background = '';
 
     const permHintTimer = setTimeout(() => {
-      showARError('Waiting for permission… check for a dialog or banner at the top of your screen and tap Allow.');
-    }, 2500);
+      arStep('Step 1: waiting on requestSession — look for a Chrome AR/camera dialog and tap Allow.');
+    }, 3000);
 
     try {
+      arStep('Step 1: requesting AR session…');
       xrSession = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'dom-overlay'],
         domOverlay: { root: arOverlay }
       });
       clearTimeout(permHintTimer);
-      clearARError();
 
+      arStep('Step 2: getting reference space…');
       xrLocalSpace = await xrSession.requestReferenceSpace('local');
       const viewer = await xrSession.requestReferenceSpace('viewer');
+
+      arStep('Step 3: starting hit-test…');
       xrHitSource  = await xrSession.requestHitTestSource({ space: viewer });
 
+      clearARError();
       arOverlay.style.display = 'block';
       overlay.style.display   = 'none';
       cameraEl.style.display  = 'none';
@@ -1739,11 +1752,13 @@
       onAREnd();
       arStartBtn.disabled = false;
       arStartBtn.textContent = 'Start AR Measurement';
-      const msg = err.message || String(err);
+      arErrorText.style.color = '';
+      arErrorText.style.background = '';
+      const msg = err.name ? `${err.name}: ${err.message || ''}` : (err.message || String(err));
       showARError(
-        msg.includes('denied') || msg.includes('ermission')
+        /denied|ermission/.test(msg)
           ? 'Camera permission denied. Allow camera access and try again.'
-          : 'Could not start AR: ' + msg
+          : 'Could not start AR — ' + msg
       );
     }
   }
