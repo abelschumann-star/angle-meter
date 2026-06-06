@@ -792,110 +792,39 @@
       line-height: 1.6;
     }
 
-    #ar-error-text {
-      font-size: 13px;
-      color: #FF453A;
-      text-align: center;
-      line-height: 1.6;
-      display: none;
-      background: rgba(255,69,58,0.12);
-      border-radius: 10px;
-      padding: 10px 14px;
-      width: 100%;
-    }
-
-    /* AR session full-screen overlay */
-    #ar-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      pointer-events: none;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    #ar-dist-box {
-      position: absolute;
-      top: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.65);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border-radius: 16px;
-      padding: 12px 28px;
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    #ar-dist-num {
-      font-size: 52px;
-      font-weight: 700;
-      color: #FFD60A;
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-    }
-
-    #ar-dist-label {
-      font-size: 13px;
-      color: rgba(255,255,255,0.55);
-      margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    #ar-reticle {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 56px;
-      height: 56px;
-      border: 2px solid rgba(255,220,0,0.85);
-      border-radius: 50%;
-    }
-
-    #ar-reticle::before, #ar-reticle::after {
-      content: '';
-      position: absolute;
-      background: rgba(255,220,0,0.85);
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-    }
-
-    #ar-reticle::before { width: 18px; height: 1.5px; }
-    #ar-reticle::after  { width: 1.5px; height: 18px; }
-
-    #ar-scan-hint {
-      position: absolute;
-      bottom: 110px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.7);
-      font-size: 13px;
-      white-space: nowrap;
-      background: rgba(0,0,0,0.5);
-      padding: 5px 14px;
+    /* AR "measure" button next to a distance input */
+    .measure-btn {
+      background: rgba(10,132,255,0.22);
+      border: 1px solid rgba(10,132,255,0.6);
       border-radius: 8px;
-    }
-
-    #ar-stop-btn {
-      position: absolute;
-      bottom: 44px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 14px 44px;
-      border-radius: 50px;
-      border: 2px solid rgba(255,255,255,0.55);
-      background: rgba(0,0,0,0.6);
       color: #fff;
-      font-size: 15px;
-      font-weight: 600;
+      font-size: 16px;
+      padding: 6px 10px;
       cursor: pointer;
-      pointer-events: all;
       white-space: nowrap;
       -webkit-tap-highlight-color: transparent;
     }
+    .measure-btn:active { background: rgba(10,132,255,0.4); }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(48,209,88,0.95);
+      color: #062;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* --- Zoom bar --- */
     #zoom-bar {
@@ -949,7 +878,7 @@
     <strong style="color:#fff">Elevation:</strong> point at a target and capture its vertical angle.<br><br>
     <strong style="color:#fff">Height:</strong> mark the top and bottom of an object to calculate its height.<br><br>
     <strong style="color:#fff">Horizontal:</strong> mark two points and measure the angle between them.<br><br>
-    <strong style="color:#fff">Distance:</strong> GPS triangulation for long range, or AR hit-test for short range.<br><br>
+    <strong style="color:#fff">Distance:</strong> GPS for long range, or AR depth for short range. Tap 📏 in Elevation or Height to measure the distance with AR and drop it straight into the calculation.<br><br>
     Hold the phone in portrait orientation for best results.
   </p>
   <button id="start-btn">Start</button>
@@ -1012,6 +941,7 @@
         <label for="dist-input">Distance</label>
         <input id="dist-input" type="number" min="0" step="any" placeholder="0" inputmode="decimal">
         <button id="unit-toggle">m</button>
+        <button id="dist-measure-btn" class="measure-btn" title="Measure with AR">📏</button>
       </div>
       <div id="captures"></div>
       <button id="capture-btn" aria-label="Capture elevation angle">
@@ -1025,6 +955,7 @@
         <label for="height-dist-input">Distance</label>
         <input id="height-dist-input" type="number" min="0" step="any" placeholder="0" inputmode="decimal">
         <button id="height-unit-toggle">m</button>
+        <button id="height-measure-btn" class="measure-btn" title="Measure with AR">📏</button>
       </div>
       <div id="height-result-panel">
         <div id="height-result-grid">
@@ -1105,8 +1036,7 @@
       <!-- AR sub-mode -->
       <div id="ar-mode">
         <button id="ar-start-btn">Start AR Measurement</button>
-        <p id="ar-hint-text">Point the camera at a surface and read the live distance.<br>Android Chrome + ARCore required.</p>
-        <p id="ar-error-text"></p>
+        <p id="ar-hint-text">Opens a full-screen AR view. Point at a surface to read the live distance.<br>Android Chrome + ARCore required.</p>
       </div>
 
     </div>
@@ -1196,15 +1126,13 @@
   const gpsBearingVal     = document.getElementById('gps-bearing-val');
   const gpsGpsAccVal      = document.getElementById('gps-gps-acc-val');
   const arStartBtn        = document.getElementById('ar-start-btn');
-  const arStopBtn         = document.getElementById('ar-stop-btn');
-  const arOverlay         = document.getElementById('ar-overlay');
-  const arDistNum         = document.getElementById('ar-dist-num');
-  const arScanHint        = document.getElementById('ar-scan-hint');
 
   // Height mode elements
   const heightModeControls = document.getElementById('height-mode-controls');
   const heightDistInput    = document.getElementById('height-dist-input');
   const heightUnitToggle   = document.getElementById('height-unit-toggle');
+  const distMeasureBtn     = document.getElementById('dist-measure-btn');
+  const heightMeasureBtn   = document.getElementById('height-measure-btn');
   const markTopBtn         = document.getElementById('mark-top-btn');
   const markBotBtn         = document.getElementById('mark-bot-btn');
   const hpTopVal           = document.getElementById('hp-top-val');
@@ -1234,11 +1162,6 @@
   let gpsWatchId    = null;
   let myPosition    = null;
   let targetCoords  = null;
-  let xrSession     = null;
-  let xrHitSource   = null;
-  let xrLocalSpace  = null;
-  let xrCanvas      = null;
-  let xrGl          = null;
 
   const SMOOTH_ELEV = 0.12;
   const SMOOTH_BEAR = 0.15;
@@ -1289,6 +1212,7 @@
 
       permScreen.style.display = 'none';
       overlay.style.display    = 'flex';
+      applyMeasuredDistance();
     } catch (err) {
       startBtn.disabled = false;
       errorMsg.textContent = err.message || 'Could not access camera or sensors.';
@@ -1623,21 +1547,41 @@
     gpsAccBadge.className = '';
   }
 
-  // ---------- Coordinate parser (DDM: N° 48 50.132', E° 002 18.423') ----------
-  function parseDDM(part) {
-    const m = part.trim().match(/([NSEWnsew])\s*°?\s*(\d{1,3})\s+(\d{1,2}\.?\d*)\s*'?/);
-    if (!m) return null;
-    const hem = m[1].toUpperCase();
-    const dd  = parseInt(m[2]) + parseFloat(m[3]) / 60;
-    return (hem === 'S' || hem === 'W') ? -dd : dd;
+  // ---------- Coordinate parser ----------
+  // Accepts decimal degrees, degrees-decimal-minutes, or degrees-minutes-seconds,
+  // with or without a N/S/E/W hemisphere letter or a leading minus. Examples:
+  //   48.8566, 2.3522
+  //   N 48 51.4, E 2 21.1
+  //   48°51'24"N, 2°21'8"E
+  function parseAngle(s) {
+    s = s.trim();
+    if (!s) return null;
+    let sign = 1;
+    const hem = s.match(/[NSEWnsew]/);
+    if (hem) {
+      const h = hem[0].toUpperCase();
+      if (h === 'S' || h === 'W') sign = -1;
+      s = s.replace(/[NSEWnsew]/g, ' ');
+    }
+    if (/^\s*-/.test(s)) sign = -sign;
+    const nums = s.match(/\d+(?:\.\d+)?/g);
+    if (!nums || !nums.length) return null;
+    let deg;
+    if (nums.length === 1)      deg = parseFloat(nums[0]);
+    else if (nums.length === 2) deg = parseInt(nums[0]) + parseFloat(nums[1]) / 60;
+    else                        deg = parseInt(nums[0]) + parseInt(nums[1]) / 60 + parseFloat(nums[2]) / 3600;
+    if (!isFinite(deg)) return null;
+    return sign * deg;
   }
 
   function parseCoords(input) {
     const comma = input.indexOf(',');
     if (comma === -1) return null;
-    const lat = parseDDM(input.slice(0, comma));
-    const lon = parseDDM(input.slice(comma + 1));
-    return (lat !== null && lon !== null) ? { lat, lon } : null;
+    const lat = parseAngle(input.slice(0, comma));
+    const lon = parseAngle(input.slice(comma + 1));
+    if (lat === null || lon === null) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+    return { lat, lon };
   }
 
   targetCoordInput.addEventListener('input', () => {
@@ -1679,7 +1623,16 @@
   }
 
   function updateGpsDistance() {
-    if (!myPosition || !targetCoords) return;
+    if (!targetCoords) return;
+    // Coordinates are valid but we don't have our own GPS fix yet — tell the user.
+    if (!myPosition) {
+      gpsDistNum.textContent  = '…';
+      gpsDistUnit.textContent = '';
+      gpsBearingVal.textContent = '--';
+      gpsGpsAccVal.textContent  = 'waiting for GPS';
+      gpsDistResult.style.display = 'block';
+      return;
+    }
     const dist = haversine(myPosition.lat, myPosition.lon, targetCoords.lat, targetCoords.lon);
     const bear = bearingTo(myPosition.lat, myPosition.lon, targetCoords.lat, targetCoords.lon);
     if (dist >= 1000) {
@@ -1694,204 +1647,64 @@
     gpsDistResult.style.display = 'block';
   }
 
-  // ---------- AR (WebXR hit-test) ----------
-  const arErrorText = document.getElementById('ar-error-text');
-
-  function showARError(msg) {
-    arErrorText.textContent = msg;
-    arErrorText.style.display = 'block';
-  }
-
-  function clearARError() {
-    arErrorText.textContent = '';
-    arErrorText.style.display = 'none';
-  }
-
-  async function checkARSupport() {
-    if (!navigator.xr) { setARUnsupported('WebXR not available — use Chrome on Android'); return; }
-    const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
-    if (!ok) setARUnsupported('AR not supported on this device. Install "Google Play Services for AR" from the Play Store and try again.');
-  }
-
-  function setARUnsupported(msg) {
-    arStartBtn.disabled = true;
-    showARError(msg);
-  }
-
-  // Open the dedicated AR page. Stop our camera first so WebXR gets it cleanly.
-  arStartBtn.addEventListener('click', () => {
+  // ---------- AR distance (runs on the dedicated ar.html page) ----------
+  // WebXR needs exclusive camera access, so AR lives on its own page. We open
+  // it, optionally tagging where a measured distance should flow back to.
+  function openARPage(returnMode) {
+    if (returnMode) localStorage.setItem('measureReturnMode', returnMode);
+    else            localStorage.removeItem('measureReturnMode');
     releaseCamera();
     location.href = './ar.html';
-  });
-  arStopBtn.addEventListener('click',  stopAR);
-
-  // Persistent on-screen debug log (top-left, above everything).
-  let arDbgEl = null;
-  function arDbg(line) {
-    if (!arDbgEl) {
-      arDbgEl = document.createElement('div');
-      arDbgEl.style.cssText =
-        'position:fixed;top:0;left:0;z-index:9999;max-width:100%;' +
-        'background:rgba(0,0,0,0.8);color:#0f0;font:11px monospace;' +
-        'padding:4px 6px;white-space:pre-wrap;pointer-events:none;';
-      document.body.appendChild(arDbgEl);
-    }
-    const t = (performance.now() / 1000).toFixed(1);
-    arDbgEl.textContent += `[${t}] ${line}\n`;
   }
 
-  function arStep(label) {
-    arErrorText.textContent = '⏳ ' + label;
-    arErrorText.style.display = 'block';
-    arErrorText.style.color = 'rgba(255,255,255,0.7)';
-    arErrorText.style.background = 'rgba(255,255,255,0.08)';
-    arDbg(label);
-  }
+  arStartBtn.addEventListener('click', () => openARPage(null));
+  if (distMeasureBtn)   distMeasureBtn.addEventListener('click',   () => openARPage('elevation'));
+  if (heightMeasureBtn) heightMeasureBtn.addEventListener('click', () => openARPage('height'));
 
-  async function startAR() {
-    clearARError();
-    if (arDbgEl) arDbgEl.textContent = '';   // fresh log each attempt
-    arFrameCount = 0;
-    arStartBtn.disabled = true;
-    arStartBtn.textContent = 'Starting…';
-    arErrorText.style.color = '';        // reset to red for real errors
-    arErrorText.style.background = '';
+  // When returning from ar.html with a measured distance, drop it into the
+  // distance field of whichever tab requested it.
+  function applyMeasuredDistance() {
+    const md = localStorage.getItem('measuredDistanceM');
+    if (md === null) return;
+    localStorage.removeItem('measuredDistanceM');
+    const ret = localStorage.getItem('measureReturnMode') || 'elevation';
+    localStorage.removeItem('measureReturnMode');
 
-    const permHintTimer = setTimeout(() => {
-      arStep('Step 1: waiting on requestSession — look for a Chrome AR/camera dialog and tap Allow.');
-    }, 3000);
+    const meters = parseFloat(md);
+    if (!isFinite(meters) || meters <= 0) return;
 
-    try {
-      // WebXR needs exclusive camera access — release our getUserMedia stream first.
-      arStep('Step 0: releasing camera…');
-      try { releaseCamera(); arDbg('camera released'); }
-      catch (e) { arDbg('releaseCamera threw: ' + e.name + ' ' + e.message); }
-
-      arStep('Step 1: requesting AR session…');
-      xrSession = await navigator.xr.requestSession('immersive-ar', {
-        optionalFeatures: ['hit-test']
-      });
-      clearTimeout(permHintTimer);
-      arDbg('session OK, blendMode=' + xrSession.environmentBlendMode);
-
-      arStep('Step 2: setting up WebGL…');
-      xrCanvas = document.createElement('canvas');
-      xrGl = xrCanvas.getContext('webgl2', { xrCompatible: true });
-      arDbg('gl=' + (xrGl ? 'webgl2 OK' : 'NULL'));
-      xrSession.updateRenderState({
-        baseLayer: new XRWebGLLayer(xrSession, xrGl)
-      });
-      arDbg('renderState set');
-
-      arStep('Step 3: getting reference space…');
-      xrLocalSpace = await xrSession.requestReferenceSpace('local');
-      const viewer = await xrSession.requestReferenceSpace('viewer');
-      arDbg('refSpaces OK');
-
-      arStep('Step 4: starting hit-test…');
-      xrHitSource = await xrSession.requestHitTestSource({ space: viewer }).catch(e => { arDbg('hitTest fail: ' + e.name); return null; });
-      arDbg('hitSource=' + (xrHitSource ? 'OK' : 'none'));
-
-      clearARError();
-      arOverlay.style.display = 'block';
-      overlay.style.display   = 'none';
-      cameraEl.style.display  = 'none';
-
-      xrSession.addEventListener('end', () => { arDbg('session ENDED'); onAREnd(); });
-      xrSession.requestAnimationFrame(onARFrame);
-      arDbg('rAF requested, waiting for frames…');
-    } catch (err) {
-      clearTimeout(permHintTimer);
-      if (xrSession) { xrSession.end(); xrSession = null; }
-      onAREnd();
-      arStartBtn.disabled = false;
-      arStartBtn.textContent = 'Start AR Measurement';
-      arErrorText.style.color = '';
-      arErrorText.style.background = '';
-      const msg = err.name ? `${err.name}: ${err.message || ''}` : (err.message || String(err));
-      arDbg('CAUGHT ERROR: ' + msg);
-      showARError(
-        /denied|ermission/.test(msg)
-          ? 'Camera permission denied. Allow camera access and try again.'
-          : 'Could not start AR — ' + msg
-      );
-    }
-  }
-
-  let arFrameCount = 0;
-  function onARFrame(time, frame) {
-    if (!xrSession) return;
-    xrSession.requestAnimationFrame(onARFrame);
-
-    const layer = xrSession.renderState.baseLayer;
-    const viewerPose = frame.getViewerPose(xrLocalSpace);
-
-    if (arFrameCount < 3) {
-      arDbg(`frame ${arFrameCount}: pose=${viewerPose ? 'yes' : 'NULL'} fb=${layer.framebuffer ? 'yes' : 'no'} views=${viewerPose ? viewerPose.views.length : 0}`);
-    }
-    arFrameCount++;
-
-    // Render exactly like the reference sample: bind the XR framebuffer, set the
-    // viewport per view, and clear with the default transparent color so the
-    // camera passthrough shows through. Never call clearColor with opaque alpha.
-    xrGl.bindFramebuffer(xrGl.FRAMEBUFFER, layer.framebuffer);
-    if (viewerPose) {
-      for (const view of viewerPose.views) {
-        const vp = layer.getViewport(view);
-        xrGl.viewport(vp.x, vp.y, vp.width, vp.height);
-      }
-    }
-    xrGl.clear(xrGl.COLOR_BUFFER_BIT | xrGl.DEPTH_BUFFER_BIT);
-
-    if (!xrHitSource) return;
-    const hits = frame.getHitTestResults(xrHitSource);
-    if (hits.length > 0 && viewerPose) {
-      const hp = hits[0].getPose(xrLocalSpace).transform.position;
-      const cp = viewerPose.transform.position;
-      const d  = Math.hypot(hp.x - cp.x, hp.y - cp.y, hp.z - cp.z);
-      arDistNum.textContent     = d.toFixed(2) + ' m';
-      arScanHint.style.display  = 'none';
+    if (ret === 'height') {
+      setMode('height');
+      heightDistUnit = 'm'; heightUnitToggle.textContent = 'm';
+      heightDistInput.value = meters.toFixed(2);
+      updateHeightResult();
     } else {
-      arScanHint.style.display  = 'block';
+      setMode('elevation');
+      distUnit = 'm'; unitToggle.textContent = 'm';
+      distInput.value = meters.toFixed(2);
+      updateLiveHeight();
     }
+    toast(`AR distance ${meters.toFixed(2)} m applied`);
   }
 
-  function stopAR() { if (xrSession) xrSession.end(); }
-
-  function onAREnd() {
-    arOverlay.style.display = 'none';
-    overlay.style.display   = 'flex';
-    xrSession    = null;
-    xrHitSource  = null;
-    xrLocalSpace = null;
-    if (xrCanvas) { xrCanvas.remove(); xrCanvas = null; }
-    xrGl = null;
-    arStartBtn.disabled = false;
-    arStartBtn.textContent = 'Start AR Measurement';
-    // Re-acquire the camera we released for the AR session.
-    if (!cameraEl.srcObject) {
-      acquireCamera().catch(() => {
-        errorMsg.textContent = 'Could not reopen camera — reload the app.';
-      });
-    } else {
-      cameraEl.style.display = 'block';
+  // ---------- Lightweight toast ----------
+  let toastTimer = null;
+  function toast(text) {
+    let el = document.getElementById('toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast';
+      document.body.appendChild(el);
     }
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
   }
 </script>
-
-<!-- AR session full-screen overlay (shown during WebXR session) -->
-<div id="ar-overlay">
-  <div id="ar-dist-box">
-    <div id="ar-dist-num">--</div>
-    <div id="ar-dist-label">Distance to surface</div>
-  </div>
-  <div id="ar-reticle"></div>
-  <div id="ar-scan-hint">Slowly pan to scan surfaces</div>
-  <button id="ar-stop-btn">Stop AR</button>
-</div>
 </body>
 </html>

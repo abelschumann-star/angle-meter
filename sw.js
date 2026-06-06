@@ -1,4 +1,4 @@
-const CACHE = 'angle-meter-v4';
+const CACHE = 'angle-meter-v5';
 const ASSETS = ['./', './index.html', './ar.html', './manifest.json', './sw.js', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

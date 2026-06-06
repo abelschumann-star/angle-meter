@@ -80,15 +80,26 @@
       background: rgba(0,0,0,0.5); padding: 5px 14px; border-radius: 8px;
       white-space: nowrap;
     }
-    #stop {
+    #controls {
       position: absolute; bottom: 44px; left: 50%;
       transform: translateX(-50%);
-      padding: 14px 44px; border-radius: 50px;
-      border: 2px solid rgba(255,255,255,0.55);
-      background: rgba(0,0,0,0.6); color: #fff;
+      display: flex; gap: 12px;
+    }
+    #controls button {
+      padding: 14px 28px; border-radius: 50px;
       font-size: 15px; font-weight: 600;
       pointer-events: all; -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
     }
+    #stop {
+      border: 2px solid rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.6); color: #fff;
+    }
+    #use {
+      border: 2px solid rgba(48,209,88,0.7);
+      background: rgba(48,209,88,0.25); color: #fff;
+    }
+    #use:disabled { opacity: 0.4; }
   </style>
 </head>
 <body>
@@ -111,7 +122,10 @@
   <div id="reticle"></div>
   <div id="hitdot"></div>
   <div id="scan">Slowly pan to scan surfaces</div>
-  <button id="stop">Stop</button>
+  <div id="controls">
+    <button id="stop">Stop</button>
+    <button id="use" disabled>Use distance</button>
+  </div>
 </div>
 
 <script>
@@ -125,6 +139,7 @@
   const methodEl = document.getElementById('method');
   const scan     = document.getElementById('scan');
   const stopBtn  = document.getElementById('stop');
+  const useBtn   = document.getElementById('use');
   const hitdot   = document.getElementById('hitdot');
 
   // Multiply a column-major mat4 (Float32Array[16]) by a vec4 → vec4.
@@ -142,10 +157,12 @@
     distNum.textContent = smoothD.toFixed(2) + ' m';
     methodEl.textContent = method;
     scan.style.display = 'none';
+    useBtn.disabled = false;
   }
   function noReading() {
     smoothD = null;
     scan.style.display = 'block';
+    useBtn.disabled = true;
   }
 
   let session, gl, refSpace, viewerSpace, hitSource;
@@ -166,6 +183,13 @@
 
   startBtn.addEventListener('click', start);
   stopBtn.addEventListener('click', () => session && session.end());
+
+  // Send the current reading back to the app and return there.
+  useBtn.addEventListener('click', () => {
+    if (smoothD != null) localStorage.setItem('measuredDistanceM', smoothD.toFixed(3));
+    if (session) session.end();
+    location.href = './';
+  });
 
   async function start() {
     startBtn.disabled = true;
