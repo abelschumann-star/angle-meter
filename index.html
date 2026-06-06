@@ -1753,9 +1753,9 @@
       xrCanvas = document.createElement('canvas');
       xrCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:50;';
       document.body.appendChild(xrCanvas);
-      xrGl = xrCanvas.getContext('webgl', { xrCompatible: true });
+      xrGl = xrCanvas.getContext('webgl', { xrCompatible: true, alpha: true });
       await xrSession.updateRenderState({
-        baseLayer: new XRWebGLLayer(xrSession, xrGl)
+        baseLayer: new XRWebGLLayer(xrSession, xrGl, { alpha: true })
       });
 
       arStep('Step 3: getting reference space…');
@@ -1793,9 +1793,10 @@
     if (!xrSession) return;
     xrSession.requestAnimationFrame(onARFrame);
 
-    // Clear the canvas so the AR camera passthrough is visible.
+    // Clear to transparent so the AR camera passthrough shows through.
     const layer = xrSession.renderState.baseLayer;
     xrGl.bindFramebuffer(xrGl.FRAMEBUFFER, layer.framebuffer);
+    xrGl.clearColor(0, 0, 0, 0);
     xrGl.clear(xrGl.COLOR_BUFFER_BIT | xrGl.DEPTH_BUFFER_BIT);
 
     if (!xrHitSource) return;
