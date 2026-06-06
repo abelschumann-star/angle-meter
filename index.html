@@ -1743,7 +1743,8 @@
 
       arStep('Step 1: requesting AR session…');
       xrSession = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['hit-test', 'dom-overlay'],
+        requiredFeatures: ['hit-test'],
+        optionalFeatures: ['dom-overlay'],
         domOverlay: { root: arOverlay }
       });
       clearTimeout(permHintTimer);
