@@ -103,6 +103,7 @@
   <div id="dist-box">
     <div id="dist-num">--</div>
     <div id="dist-lbl">Distance to surface</div>
+    <div id="method" style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;text-transform:uppercase;letter-spacing:0.5px;"></div>
   </div>
   <div id="reticle"></div>
   <div id="hitdot"></div>
@@ -117,6 +118,8 @@
   const landing  = document.getElementById('landing');
   const hud      = document.getElementById('hud');
   const distNum  = document.getElementById('dist-num');
+  const distLbl  = document.getElementById('dist-lbl');
+  const methodEl = document.getElementById('method');
   const scan     = document.getElementById('scan');
   const stopBtn  = document.getElementById('stop');
   const hitdot   = document.getElementById('hitdot');
@@ -127,6 +130,19 @@
     for (let i = 0; i < 4; i++)
       o[i] = m[i] * v[0] + m[4 + i] * v[1] + m[8 + i] * v[2] + m[12 + i] * v[3];
     return o;
+  }
+
+  // Exponential smoothing to steady the readout.
+  let smoothD = null;
+  function showDistance(d, method) {
+    smoothD = smoothD === null ? d : 0.3 * d + 0.7 * smoothD;
+    distNum.textContent = smoothD.toFixed(2) + ' m';
+    methodEl.textContent = method;
+    scan.style.display = 'none';
+  }
+  function noReading() {
+    smoothD = null;
+    scan.style.display = 'block';
   }
 
   let session, gl, refSpace, viewerSpace, hitSource;
@@ -154,8 +170,12 @@
     try {
       session = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test'],
-        optionalFeatures: ['dom-overlay'],
-        domOverlay: { root: hud }
+        optionalFeatures: ['dom-overlay', 'depth-sensing'],
+        domOverlay: { root: hud },
+        depthSensing: {
+          usagePreference: ['cpu-optimized'],
+          dataFormatPreference: ['luminance-alpha', 'float32']
+        }
       });
 
       const canvas = document.createElement('canvas');
@@ -191,16 +211,42 @@
     }
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    if (!pose) { noReading(); hitdot.style.display = 'none'; return; }
+    const view = pose.views[0];
+
+    // --- 1. Depth sensing (works on any surface, no plane needed) ---
+    let depthMeters = null;
+    if (frame.getDepthInformation) {
+      try {
+        const depthInfo = frame.getDepthInformation(view);
+        if (depthInfo) {
+          // Sample the center of the view, mapped into the depth buffer.
+          const t = depthInfo.normDepthBufferFromNormView.matrix;
+          const c = mulVec(t, [0.5, 0.5, 0, 1]);
+          const dz = depthInfo.getDepthInMeters(c[0], c[1]);
+          if (dz > 0 && isFinite(dz)) depthMeters = dz;
+        }
+      } catch (e) { /* depth not available this frame */ }
+    }
+
+    if (depthMeters !== null) {
+      showDistance(depthMeters, 'depth');
+      // The measured point is the center reticle; keep the dot there.
+      hitdot.style.left = (window.innerWidth / 2) + 'px';
+      hitdot.style.top  = (window.innerHeight / 2) + 'px';
+      hitdot.style.display = 'block';
+      return;
+    }
+
+    // --- 2. Fallback: plane/feature hit-test ---
     const hits = frame.getHitTestResults(hitSource);
-    if (hits.length > 0 && pose) {
+    if (hits.length > 0) {
       const h = hits[0].getPose(refSpace).transform.position;
       const c = pose.transform.position;
       const d = Math.hypot(h.x - c.x, h.y - c.y, h.z - c.z);
-      distNum.textContent = d.toFixed(2) + ' m';
-      scan.style.display = 'none';
+      showDistance(d, 'plane');
 
       // Project the world-space hit point onto the screen and place the dot.
-      const view = pose.views[0];
       const vEye  = mulVec(view.transform.inverse.matrix, [h.x, h.y, h.z, 1]);
       const vClip = mulVec(view.projectionMatrix, vEye);
       if (vClip[3] > 0) {
@@ -213,7 +259,7 @@
         hitdot.style.display = 'none';
       }
     } else {
-      scan.style.display = 'block';
+      noReading();
       hitdot.style.display = 'none';
     }
   }
