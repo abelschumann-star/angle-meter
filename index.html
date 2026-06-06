@@ -1242,19 +1242,31 @@
   const SMOOTH_BEAR = 0.15;
   const VFOV_HALF   = 30; // approximate half-FoV in degrees (portrait)
 
+  // ---------- Camera acquire / release ----------
+  async function acquireCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+      audio: false
+    });
+    cameraEl.srcObject = stream;
+    cameraEl.style.display = 'block';
+    videoTrack = stream.getVideoTracks()[0];
+    setupZoom(videoTrack);
+  }
+
+  function releaseCamera() {
+    const stream = cameraEl.srcObject;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    cameraEl.srcObject = null;
+    videoTrack = null;
+  }
+
   // ---------- Start ----------
   startBtn.addEventListener('click', async () => {
     startBtn.disabled = true;
     errorMsg.textContent = '';
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
-        audio: false
-      });
-      cameraEl.srcObject = stream;
-      cameraEl.style.display = 'block';
-      videoTrack = stream.getVideoTracks()[0];
-      setupZoom(videoTrack);
+      await acquireCamera();
 
       if (typeof DeviceOrientationEvent !== 'undefined' &&
           typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -1725,6 +1737,10 @@
     }, 3000);
 
     try {
+      // WebXR needs exclusive camera access — release our getUserMedia stream first.
+      arStep('Step 0: releasing camera…');
+      releaseCamera();
+
       arStep('Step 1: requesting AR session…');
       xrSession = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'dom-overlay'],
@@ -1784,12 +1800,19 @@
   function onAREnd() {
     arOverlay.style.display = 'none';
     overlay.style.display   = 'flex';
-    cameraEl.style.display  = 'block';
     xrSession    = null;
     xrHitSource  = null;
     xrLocalSpace = null;
     arStartBtn.disabled = false;
     arStartBtn.textContent = 'Start AR Measurement';
+    // Re-acquire the camera we released for the AR session.
+    if (!cameraEl.srcObject) {
+      acquireCamera().catch(() => {
+        errorMsg.textContent = 'Could not reopen camera — reload the app.';
+      });
+    } else {
+      cameraEl.style.display = 'block';
+    }
   }
 
   if ('serviceWorker' in navigator) {
