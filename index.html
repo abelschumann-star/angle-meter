@@ -1751,11 +1751,9 @@
 
       arStep('Step 2: setting up WebGL…');
       xrCanvas = document.createElement('canvas');
-      xrCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:50;';
-      document.body.appendChild(xrCanvas);
-      xrGl = xrCanvas.getContext('webgl', { xrCompatible: true, alpha: true });
+      xrGl = xrCanvas.getContext('webgl2', { xrCompatible: true });
       await xrSession.updateRenderState({
-        baseLayer: new XRWebGLLayer(xrSession, xrGl, { alpha: true })
+        baseLayer: new XRWebGLLayer(xrSession, xrGl)
       });
 
       arStep('Step 3: getting reference space…');
@@ -1793,15 +1791,23 @@
     if (!xrSession) return;
     xrSession.requestAnimationFrame(onARFrame);
 
-    // Bind the XR framebuffer — ARCore has already written the camera feed into it.
-    // Only clear depth; clearing color would erase the camera passthrough.
     const layer = xrSession.renderState.baseLayer;
+    const viewerPose = frame.getViewerPose(xrLocalSpace);
+
+    // Render exactly like the reference sample: bind the XR framebuffer, set the
+    // viewport per view, and clear with the default transparent color so the
+    // camera passthrough shows through. Never call clearColor with opaque alpha.
     xrGl.bindFramebuffer(xrGl.FRAMEBUFFER, layer.framebuffer);
-    xrGl.clear(xrGl.DEPTH_BUFFER_BIT);
+    if (viewerPose) {
+      for (const view of viewerPose.views) {
+        const vp = layer.getViewport(view);
+        xrGl.viewport(vp.x, vp.y, vp.width, vp.height);
+      }
+    }
+    xrGl.clear(xrGl.COLOR_BUFFER_BIT | xrGl.DEPTH_BUFFER_BIT);
 
     if (!xrHitSource) return;
-    const hits       = frame.getHitTestResults(xrHitSource);
-    const viewerPose = frame.getViewerPose(xrLocalSpace);
+    const hits = frame.getHitTestResults(xrHitSource);
     if (hits.length > 0 && viewerPose) {
       const hp = hits[0].getPose(xrLocalSpace).transform.position;
       const cp = viewerPose.transform.position;
