@@ -220,11 +220,21 @@
       try {
         const depthInfo = frame.getDepthInformation(view);
         if (depthInfo) {
-          // Sample the center of the view, mapped into the depth buffer.
+          // Sample a small cluster around the center reticle and take the
+          // median, so low-res depth noise/edges don't throw off the reading.
           const t = depthInfo.normDepthBufferFromNormView.matrix;
-          const c = mulVec(t, [0.5, 0.5, 0, 1]);
-          const dz = depthInfo.getDepthInMeters(c[0], c[1]);
-          if (dz > 0 && isFinite(dz)) depthMeters = dz;
+          const samples = [];
+          for (let dx = -2; dx <= 2; dx++) {
+            for (let dy = -2; dy <= 2; dy++) {
+              const c = mulVec(t, [0.5 + dx * 0.015, 0.5 + dy * 0.015, 0, 1]);
+              const dz = depthInfo.getDepthInMeters(c[0], c[1]);
+              if (dz > 0 && isFinite(dz)) samples.push(dz);
+            }
+          }
+          if (samples.length) {
+            samples.sort((a, b) => a - b);
+            depthMeters = samples[Math.floor(samples.length / 2)];
+          }
         }
       } catch (e) { /* depth not available this frame */ }
     }
