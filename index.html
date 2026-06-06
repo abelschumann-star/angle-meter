@@ -101,10 +101,10 @@
     }
 
     .tab-btn {
-      padding: 8px 22px;
+      padding: 7px 10px;
       border: none;
       border-radius: 9px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       background: transparent;
@@ -609,6 +609,282 @@
     #mark-top-btn.marked { border-color: rgba(255,159,10,0.7); background: rgba(255,159,10,0.15); }
     #mark-bot-btn.marked { border-color: rgba(48,209,88,0.7);  background: rgba(48,209,88,0.15); }
 
+    /* --- Distance tab --- */
+    #dist-mode-controls {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      pointer-events: all;
+    }
+
+    #dist-submode-bar {
+      display: flex;
+      background: rgba(0,0,0,0.45);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+      width: 100%;
+    }
+
+    .dsub-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .dsub-btn.active { background: rgba(255,255,255,0.18); color: #fff; }
+
+    #gps-mode {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    #ar-mode {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+    }
+
+    .gps-box {
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .gps-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .gps-lbl {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .gps-val {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #gps-acc-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255,69,58,0.25);
+      color: #FF453A;
+    }
+
+    #gps-acc-badge.ok   { background: rgba(255,159,10,0.25); color: #FF9F0A; }
+    #gps-acc-badge.good { background: rgba(48,209,88,0.25);  color: #30D158; }
+
+    #target-coord-input {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      padding: 8px 10px;
+      width: 100%;
+      -webkit-appearance: none;
+    }
+
+    #target-coord-input::placeholder { color: rgba(255,255,255,0.25); }
+    #target-coord-input:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+
+    #target-parse-status { font-size: 13px; font-weight: 700; }
+
+    #gps-dist-result {
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 14px;
+      padding: 14px 16px;
+      text-align: center;
+      display: none;
+    }
+
+    #gps-dist-num {
+      font-size: 52px;
+      font-weight: 700;
+      color: #FFD60A;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    #gps-dist-unit {
+      font-size: 20px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.6);
+      margin-left: 4px;
+    }
+
+    #gps-meta-row {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .gps-meta-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+    .gps-meta-val {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gps-meta-lbl {
+      font-size: 10px;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #ar-start-btn {
+      width: 100%;
+      padding: 18px;
+      border-radius: 14px;
+      border: 2px solid rgba(10,132,255,0.6);
+      background: rgba(10,132,255,0.2);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #ar-start-btn:active { opacity: 0.8; }
+    #ar-start-btn:disabled { opacity: 0.35; cursor: default; }
+
+    #ar-hint-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* AR session full-screen overlay */
+    #ar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    #ar-dist-box {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      padding: 12px 28px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #ar-dist-num {
+      font-size: 52px;
+      font-weight: 700;
+      color: #FFD60A;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    #ar-dist-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #ar-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px;
+      height: 56px;
+      border: 2px solid rgba(255,220,0,0.85);
+      border-radius: 50%;
+    }
+
+    #ar-reticle::before, #ar-reticle::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,220,0,0.85);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #ar-reticle::before { width: 18px; height: 1.5px; }
+    #ar-reticle::after  { width: 1.5px; height: 18px; }
+
+    #ar-scan-hint {
+      position: absolute;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      white-space: nowrap;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 14px;
+      border-radius: 8px;
+    }
+
+    #ar-stop-btn {
+      position: absolute;
+      bottom: 44px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 14px 44px;
+      border-radius: 50px;
+      border: 2px solid rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      pointer-events: all;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     /* --- Zoom bar --- */
     #zoom-bar {
       display: none;
@@ -661,6 +937,7 @@
     <strong style="color:#fff">Elevation:</strong> point at a target and capture its vertical angle.<br><br>
     <strong style="color:#fff">Height:</strong> mark the top and bottom of an object to calculate its height.<br><br>
     <strong style="color:#fff">Horizontal:</strong> mark two points and measure the angle between them.<br><br>
+    <strong style="color:#fff">Distance:</strong> GPS triangulation for long range, or AR hit-test for short range.<br><br>
     Hold the phone in portrait orientation for best results.
   </p>
   <button id="start-btn">Start</button>
@@ -679,6 +956,7 @@
       <button class="tab-btn active" id="tab-elev">Elevation</button>
       <button class="tab-btn"        id="tab-height">Height</button>
       <button class="tab-btn"        id="tab-horiz">Horizontal</button>
+      <button class="tab-btn"        id="tab-dist">Distance</button>
     </div>
 
     <!-- Elevation: live angle + optional height -->
@@ -762,6 +1040,64 @@
       </div>
     </div>
 
+    <!-- Distance mode controls -->
+    <div id="dist-mode-controls">
+
+      <div id="dist-submode-bar">
+        <button class="dsub-btn active" id="dsub-gps">GPS (long range)</button>
+        <button class="dsub-btn"        id="dsub-ar">AR (short range)</button>
+      </div>
+
+      <!-- GPS sub-mode -->
+      <div id="gps-mode">
+        <div class="gps-box">
+          <div class="gps-row">
+            <span class="gps-lbl">Your position</span>
+            <span id="gps-acc-badge">acquiring…</span>
+          </div>
+          <div class="gps-row">
+            <span class="gps-lbl">Lat</span>
+            <span class="gps-val" id="gps-lat-val">--</span>
+          </div>
+          <div class="gps-row">
+            <span class="gps-lbl">Lon</span>
+            <span class="gps-val" id="gps-lon-val">--</span>
+          </div>
+        </div>
+        <div class="gps-box">
+          <div class="gps-row">
+            <span class="gps-lbl">Target coordinates</span>
+            <span id="target-parse-status"></span>
+          </div>
+          <input id="target-coord-input" type="text"
+                 placeholder="N° 48 50.132', E° 002 18.423'"
+                 autocomplete="off" spellcheck="false" inputmode="text">
+        </div>
+        <div id="gps-dist-result">
+          <div>
+            <span id="gps-dist-num">--</span><span id="gps-dist-unit">m</span>
+          </div>
+          <div id="gps-meta-row">
+            <div class="gps-meta-item">
+              <span class="gps-meta-val" id="gps-bearing-val">--</span>
+              <span class="gps-meta-lbl">Bearing</span>
+            </div>
+            <div class="gps-meta-item">
+              <span class="gps-meta-val" id="gps-gps-acc-val">--</span>
+              <span class="gps-meta-lbl">GPS ±</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AR sub-mode -->
+      <div id="ar-mode">
+        <button id="ar-start-btn">Start AR Measurement</button>
+        <p id="ar-hint-text">Point the camera at a surface and read the live distance.<br>Android Chrome + ARCore required.</p>
+      </div>
+
+    </div>
+
     <!-- Horizontal controls -->
     <div id="horiz-controls">
       <div id="delta-panel">
@@ -829,6 +1165,29 @@
   const deltaDir      = document.getElementById('delta-dir');
   const deltaHint     = document.getElementById('delta-hint');
 
+  // Distance tab elements
+  const distModeControls  = document.getElementById('dist-mode-controls');
+  const tabDist           = document.getElementById('tab-dist');
+  const dsubGps           = document.getElementById('dsub-gps');
+  const dsubAr            = document.getElementById('dsub-ar');
+  const gpsModeDiv        = document.getElementById('gps-mode');
+  const arModeDiv         = document.getElementById('ar-mode');
+  const gpsLatVal         = document.getElementById('gps-lat-val');
+  const gpsLonVal         = document.getElementById('gps-lon-val');
+  const gpsAccBadge       = document.getElementById('gps-acc-badge');
+  const targetCoordInput  = document.getElementById('target-coord-input');
+  const targetParseStatus = document.getElementById('target-parse-status');
+  const gpsDistResult     = document.getElementById('gps-dist-result');
+  const gpsDistNum        = document.getElementById('gps-dist-num');
+  const gpsDistUnit       = document.getElementById('gps-dist-unit');
+  const gpsBearingVal     = document.getElementById('gps-bearing-val');
+  const gpsGpsAccVal      = document.getElementById('gps-gps-acc-val');
+  const arStartBtn        = document.getElementById('ar-start-btn');
+  const arStopBtn         = document.getElementById('ar-stop-btn');
+  const arOverlay         = document.getElementById('ar-overlay');
+  const arDistNum         = document.getElementById('ar-dist-num');
+  const arScanHint        = document.getElementById('ar-scan-hint');
+
   // Height mode elements
   const heightModeControls = document.getElementById('height-mode-controls');
   const heightDistInput    = document.getElementById('height-dist-input');
@@ -858,6 +1217,13 @@
   let mode          = 'elevation';
   let distUnit      = 'm';
   let heightDistUnit = 'm';
+  let distSubMode   = 'gps';
+  let gpsWatchId    = null;
+  let myPosition    = null;
+  let targetCoords  = null;
+  let xrSession     = null;
+  let xrHitSource   = null;
+  let xrLocalSpace  = null;
 
   const SMOOTH_ELEV = 0.12;
   const SMOOTH_BEAR = 0.15;
@@ -971,16 +1337,19 @@
   tabElev.addEventListener('click',   () => setMode('elevation'));
   tabHeight.addEventListener('click', () => setMode('height'));
   tabHoriz.addEventListener('click',  () => setMode('horizontal'));
+  tabDist.addEventListener('click',   () => setMode('distance'));
 
   function setMode(m) {
     mode = m;
-    const isElev   = m === 'elevation';
+    const isElev  = m === 'elevation';
     const isHeight = m === 'height';
     const isHoriz  = m === 'horizontal';
+    const isDist   = m === 'distance';
 
     tabElev.classList.toggle('active', isElev);
     tabHeight.classList.toggle('active', isHeight);
     tabHoriz.classList.toggle('active', isHoriz);
+    tabDist.classList.toggle('active', isDist);
 
     elevDisplay.style.display        = (isElev || isHeight) ? 'block' : 'none';
     bearingDisplay.style.display     = isHoriz ? 'block' : 'none';
@@ -988,8 +1357,12 @@
     elevControls.style.display       = isElev   ? 'flex' : 'none';
     heightModeControls.style.display = isHeight ? 'flex' : 'none';
     horizControls.style.display      = isHoriz  ? 'flex' : 'none';
+    distModeControls.style.display   = isDist   ? 'flex' : 'none';
 
     horizonEl.style.display = (isElev || isHeight) ? 'block' : 'none';
+
+    if (isDist) startGPS();
+    else        stopGPS();
   }
 
   // ---------- Distance / height helpers ----------
@@ -1181,9 +1554,197 @@
     }
   }
 
+  // ---------- Distance: sub-mode toggle ----------
+  dsubGps.addEventListener('click', () => setDistSubMode('gps'));
+  dsubAr.addEventListener('click',  () => setDistSubMode('ar'));
+
+  function setDistSubMode(m) {
+    distSubMode = m;
+    dsubGps.classList.toggle('active', m === 'gps');
+    dsubAr.classList.toggle('active',  m === 'ar');
+    gpsModeDiv.style.display = m === 'gps' ? 'flex' : 'none';
+    arModeDiv.style.display  = m === 'ar'  ? 'flex' : 'none';
+    if (m === 'ar') checkARSupport();
+  }
+
+  // ---------- GPS ----------
+  function startGPS() {
+    if (gpsWatchId !== null || !navigator.geolocation) return;
+    gpsWatchId = navigator.geolocation.watchPosition(onGPSUpdate, onGPSError,
+      { enableHighAccuracy: true, maximumAge: 2000 });
+  }
+
+  function stopGPS() {
+    if (gpsWatchId === null) return;
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+
+  function onGPSUpdate(pos) {
+    const { latitude: lat, longitude: lon, accuracy: acc } = pos.coords;
+    myPosition = { lat, lon, accuracy: acc };
+    gpsLatVal.textContent = lat.toFixed(6) + '°';
+    gpsLonVal.textContent = lon.toFixed(6) + '°';
+    gpsAccBadge.textContent = `±${acc.toFixed(0)} m`;
+    gpsAccBadge.className = acc < 10 ? 'good' : acc < 30 ? 'ok' : '';
+    updateGpsDistance();
+  }
+
+  function onGPSError() {
+    gpsAccBadge.textContent = 'error';
+    gpsAccBadge.className = '';
+  }
+
+  // ---------- Coordinate parser (DDM: N° 48 50.132', E° 002 18.423') ----------
+  function parseDDM(part) {
+    const m = part.trim().match(/([NSEWnsew])\s*°?\s*(\d{1,3})\s+(\d{1,2}\.?\d*)\s*'?/);
+    if (!m) return null;
+    const hem = m[1].toUpperCase();
+    const dd  = parseInt(m[2]) + parseFloat(m[3]) / 60;
+    return (hem === 'S' || hem === 'W') ? -dd : dd;
+  }
+
+  function parseCoords(input) {
+    const comma = input.indexOf(',');
+    if (comma === -1) return null;
+    const lat = parseDDM(input.slice(0, comma));
+    const lon = parseDDM(input.slice(comma + 1));
+    return (lat !== null && lon !== null) ? { lat, lon } : null;
+  }
+
+  targetCoordInput.addEventListener('input', () => {
+    const v = targetCoordInput.value.trim();
+    if (!v) {
+      targetCoords = null;
+      targetParseStatus.textContent = '';
+      gpsDistResult.style.display = 'none';
+      return;
+    }
+    const coords = parseCoords(v);
+    if (coords) {
+      targetCoords = coords;
+      targetParseStatus.textContent = '✓';
+      targetParseStatus.style.color = '#30D158';
+      updateGpsDistance();
+    } else {
+      targetCoords = null;
+      targetParseStatus.textContent = '✗';
+      targetParseStatus.style.color = '#FF453A';
+      gpsDistResult.style.display = 'none';
+    }
+  });
+
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const f1 = lat1 * Math.PI/180, f2 = lat2 * Math.PI/180;
+    const df = (lat2 - lat1) * Math.PI/180, dl = (lon2 - lon1) * Math.PI/180;
+    const a = Math.sin(df/2)**2 + Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function bearingTo(lat1, lon1, lat2, lon2) {
+    const f1 = lat1*Math.PI/180, f2 = lat2*Math.PI/180;
+    const dl = (lon2 - lon1)*Math.PI/180;
+    const y = Math.sin(dl)*Math.cos(f2);
+    const x = Math.cos(f1)*Math.sin(f2) - Math.sin(f1)*Math.cos(f2)*Math.cos(dl);
+    return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
+  }
+
+  function updateGpsDistance() {
+    if (!myPosition || !targetCoords) return;
+    const dist = haversine(myPosition.lat, myPosition.lon, targetCoords.lat, targetCoords.lon);
+    const bear = bearingTo(myPosition.lat, myPosition.lon, targetCoords.lat, targetCoords.lon);
+    if (dist >= 1000) {
+      gpsDistNum.textContent  = (dist / 1000).toFixed(2);
+      gpsDistUnit.textContent = ' km';
+    } else {
+      gpsDistNum.textContent  = dist.toFixed(1);
+      gpsDistUnit.textContent = ' m';
+    }
+    gpsBearingVal.textContent  = bear.toFixed(1) + '°';
+    gpsGpsAccVal.textContent   = '±' + myPosition.accuracy.toFixed(0) + ' m';
+    gpsDistResult.style.display = 'block';
+  }
+
+  // ---------- AR (WebXR hit-test) ----------
+  async function checkARSupport() {
+    if (!navigator.xr) { setARUnsupported(); return; }
+    const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+    if (!ok) setARUnsupported();
+  }
+
+  function setARUnsupported() {
+    arStartBtn.disabled = true;
+    arStartBtn.textContent = 'AR not supported on this device';
+  }
+
+  arStartBtn.addEventListener('click', startAR);
+  arStopBtn.addEventListener('click',  stopAR);
+
+  async function startAR() {
+    try {
+      xrSession = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test', 'dom-overlay'],
+        domOverlay: { root: arOverlay }
+      });
+      arOverlay.style.display = 'block';
+      overlay.style.display   = 'none';
+      cameraEl.style.display  = 'none';
+
+      xrLocalSpace = await xrSession.requestReferenceSpace('local');
+      const viewer = await xrSession.requestReferenceSpace('viewer');
+      xrHitSource  = await xrSession.requestHitTestSource({ space: viewer });
+
+      xrSession.addEventListener('end', onAREnd);
+      xrSession.requestAnimationFrame(onARFrame);
+    } catch (err) {
+      onAREnd();
+      arStartBtn.disabled = true;
+      arStartBtn.textContent = 'Could not start AR: ' + (err.message || 'unknown error');
+    }
+  }
+
+  function onARFrame(time, frame) {
+    if (!xrSession) return;
+    xrSession.requestAnimationFrame(onARFrame);
+    const hits       = frame.getHitTestResults(xrHitSource);
+    const viewerPose = frame.getViewerPose(xrLocalSpace);
+    if (hits.length > 0 && viewerPose) {
+      const hp = hits[0].getPose(xrLocalSpace).transform.position;
+      const cp = viewerPose.transform.position;
+      const d  = Math.hypot(hp.x - cp.x, hp.y - cp.y, hp.z - cp.z);
+      arDistNum.textContent     = d.toFixed(2) + ' m';
+      arScanHint.style.display  = 'none';
+    } else {
+      arScanHint.style.display  = 'block';
+    }
+  }
+
+  function stopAR() { if (xrSession) xrSession.end(); }
+
+  function onAREnd() {
+    arOverlay.style.display = 'none';
+    overlay.style.display   = 'flex';
+    cameraEl.style.display  = 'block';
+    xrSession    = null;
+    xrHitSource  = null;
+    xrLocalSpace = null;
+  }
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
   }
 </script>
+
+<!-- AR session full-screen overlay (shown during WebXR session) -->
+<div id="ar-overlay">
+  <div id="ar-dist-box">
+    <div id="ar-dist-num">--</div>
+    <div id="ar-dist-label">Distance to surface</div>
+  </div>
+  <div id="ar-reticle"></div>
+  <div id="ar-scan-hint">Slowly pan to scan surfaces</div>
+  <button id="ar-stop-btn">Stop AR</button>
+</div>
 </body>
 </html>
