@@ -1107,7 +1107,7 @@
         <button id="ar-start-btn">Start AR Measurement</button>
         <p id="ar-hint-text">Point the camera at a surface and read the live distance.<br>Android Chrome + ARCore required.</p>
         <p id="ar-error-text"></p>
-        <p style="font-size:11px;color:rgba(255,255,255,0.3)">build 15</p>
+        <p style="font-size:11px;color:rgba(255,255,255,0.3)">build 16</p>
       </div>
 
     </div>
@@ -1746,6 +1746,8 @@
 
   async function startAR() {
     clearARError();
+    if (arDbgEl) arDbgEl.textContent = '';   // fresh log each attempt
+    arFrameCount = 0;
     arStartBtn.disabled = true;
     arStartBtn.textContent = 'Starting…';
     arErrorText.style.color = '';        // reset to red for real errors
@@ -1758,7 +1760,8 @@
     try {
       // WebXR needs exclusive camera access — release our getUserMedia stream first.
       arStep('Step 0: releasing camera…');
-      releaseCamera();
+      try { releaseCamera(); arDbg('camera released'); }
+      catch (e) { arDbg('releaseCamera threw: ' + e.name + ' ' + e.message); }
 
       arStep('Step 1: requesting AR session…');
       xrSession = await navigator.xr.requestSession('immersive-ar', {
@@ -1802,6 +1805,7 @@
       arErrorText.style.color = '';
       arErrorText.style.background = '';
       const msg = err.name ? `${err.name}: ${err.message || ''}` : (err.message || String(err));
+      arDbg('CAUGHT ERROR: ' + msg);
       showARError(
         /denied|ermission/.test(msg)
           ? 'Camera permission denied. Allow camera access and try again.'
