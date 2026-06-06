@@ -1190,20 +1190,21 @@
   }
 
   // ---------- Start ----------
-  startBtn.addEventListener('click', async () => {
-    startBtn.disabled = true;
-    errorMsg.textContent = '';
-    try {
-      await acquireCamera();
+  let sensorsBound = false;
+  let gotAbsolute  = false;
 
-      if (typeof DeviceOrientationEvent !== 'undefined' &&
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        const perm = await DeviceOrientationEvent.requestPermission();
-        if (perm !== 'granted') throw new Error('Motion sensor access denied.');
-      }
+  async function startApp() {
+    await acquireCamera();
 
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') throw new Error('Motion sensor access denied.');
+    }
+
+    if (!sensorsBound) {
+      sensorsBound = true;
       // Prefer absolute (tilt-compensated compass) — works upright on Android
-      let gotAbsolute = false;
       window.addEventListener('deviceorientationabsolute', (e) => {
         gotAbsolute = true;
         onOrientation(e);
@@ -1212,15 +1213,31 @@
       window.addEventListener('deviceorientation', (e) => {
         if (!gotAbsolute) onOrientation(e);
       }, true);
+    }
 
-      permScreen.style.display = 'none';
-      overlay.style.display    = 'flex';
-      applyMeasuredDistance();
+    permScreen.style.display = 'none';
+    overlay.style.display    = 'flex';
+    applyMeasuredDistance();
+  }
+
+  startBtn.addEventListener('click', async () => {
+    startBtn.disabled = true;
+    errorMsg.textContent = '';
+    try {
+      await startApp();
     } catch (err) {
       startBtn.disabled = false;
       errorMsg.textContent = err.message || 'Could not access camera or sensors.';
     }
   });
+
+  // Returning from the AR page with a measurement: resume straight into the
+  // app (skipping the Start tap) so we land on the right tab with the distance
+  // already filled. If auto-start is blocked (e.g. needs a gesture), the
+  // permission screen stays and the measurement is applied on manual Start.
+  if (localStorage.getItem('measuredDistanceM') !== null) {
+    startApp().catch(() => { startBtn.disabled = false; });
+  }
 
   // ---------- Orientation ----------
   function onOrientation(e) {
