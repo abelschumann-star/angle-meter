@@ -1107,7 +1107,7 @@
         <button id="ar-start-btn">Start AR Measurement</button>
         <p id="ar-hint-text">Point the camera at a surface and read the live distance.<br>Android Chrome + ARCore required.</p>
         <p id="ar-error-text"></p>
-        <p style="font-size:11px;color:rgba(255,255,255,0.3)">build 14</p>
+        <p style="font-size:11px;color:rgba(255,255,255,0.3)">build 15</p>
       </div>
 
     </div>
@@ -1721,11 +1721,27 @@
   arStartBtn.addEventListener('click', startAR);
   arStopBtn.addEventListener('click',  stopAR);
 
+  // Persistent on-screen debug log (top-left, above everything).
+  let arDbgEl = null;
+  function arDbg(line) {
+    if (!arDbgEl) {
+      arDbgEl = document.createElement('div');
+      arDbgEl.style.cssText =
+        'position:fixed;top:0;left:0;z-index:9999;max-width:100%;' +
+        'background:rgba(0,0,0,0.8);color:#0f0;font:11px monospace;' +
+        'padding:4px 6px;white-space:pre-wrap;pointer-events:none;';
+      document.body.appendChild(arDbgEl);
+    }
+    const t = (performance.now() / 1000).toFixed(1);
+    arDbgEl.textContent += `[${t}] ${line}\n`;
+  }
+
   function arStep(label) {
     arErrorText.textContent = '⏳ ' + label;
     arErrorText.style.display = 'block';
     arErrorText.style.color = 'rgba(255,255,255,0.7)';
     arErrorText.style.background = 'rgba(255,255,255,0.08)';
+    arDbg(label);
   }
 
   async function startAR() {
@@ -1749,28 +1765,34 @@
         optionalFeatures: ['hit-test']
       });
       clearTimeout(permHintTimer);
+      arDbg('session OK, blendMode=' + xrSession.environmentBlendMode);
 
       arStep('Step 2: setting up WebGL…');
       xrCanvas = document.createElement('canvas');
       xrGl = xrCanvas.getContext('webgl2', { xrCompatible: true });
-      await xrSession.updateRenderState({
+      arDbg('gl=' + (xrGl ? 'webgl2 OK' : 'NULL'));
+      xrSession.updateRenderState({
         baseLayer: new XRWebGLLayer(xrSession, xrGl)
       });
+      arDbg('renderState set');
 
       arStep('Step 3: getting reference space…');
       xrLocalSpace = await xrSession.requestReferenceSpace('local');
       const viewer = await xrSession.requestReferenceSpace('viewer');
+      arDbg('refSpaces OK');
 
       arStep('Step 4: starting hit-test…');
-      xrHitSource = await xrSession.requestHitTestSource({ space: viewer }).catch(() => null);
+      xrHitSource = await xrSession.requestHitTestSource({ space: viewer }).catch(e => { arDbg('hitTest fail: ' + e.name); return null; });
+      arDbg('hitSource=' + (xrHitSource ? 'OK' : 'none'));
 
       clearARError();
       arOverlay.style.display = 'block';
       overlay.style.display   = 'none';
       cameraEl.style.display  = 'none';
 
-      xrSession.addEventListener('end', onAREnd);
+      xrSession.addEventListener('end', () => { arDbg('session ENDED'); onAREnd(); });
       xrSession.requestAnimationFrame(onARFrame);
+      arDbg('rAF requested, waiting for frames…');
     } catch (err) {
       clearTimeout(permHintTimer);
       if (xrSession) { xrSession.end(); xrSession = null; }
@@ -1788,12 +1810,18 @@
     }
   }
 
+  let arFrameCount = 0;
   function onARFrame(time, frame) {
     if (!xrSession) return;
     xrSession.requestAnimationFrame(onARFrame);
 
     const layer = xrSession.renderState.baseLayer;
     const viewerPose = frame.getViewerPose(xrLocalSpace);
+
+    if (arFrameCount < 3) {
+      arDbg(`frame ${arFrameCount}: pose=${viewerPose ? 'yes' : 'NULL'} fb=${layer.framebuffer ? 'yes' : 'no'} views=${viewerPose ? viewerPose.views.length : 0}`);
+    }
+    arFrameCount++;
 
     // Render exactly like the reference sample: bind the XR framebuffer, set the
     // viewport per view, and clear with the default transparent color so the
