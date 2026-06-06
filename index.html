@@ -1193,6 +1193,20 @@
   let sensorsBound = false;
   let gotAbsolute  = false;
 
+  function bindSensors() {
+    if (sensorsBound) return;
+    sensorsBound = true;
+    // Prefer absolute (tilt-compensated compass) — works upright on Android
+    window.addEventListener('deviceorientationabsolute', (e) => {
+      gotAbsolute = true;
+      onOrientation(e);
+    }, true);
+    // Fallback for iOS (uses webkitCompassHeading) and non-absolute Android
+    window.addEventListener('deviceorientation', (e) => {
+      if (!gotAbsolute) onOrientation(e);
+    }, true);
+  }
+
   async function startApp() {
     await acquireCamera();
 
@@ -1202,19 +1216,7 @@
       if (perm !== 'granted') throw new Error('Motion sensor access denied.');
     }
 
-    if (!sensorsBound) {
-      sensorsBound = true;
-      // Prefer absolute (tilt-compensated compass) — works upright on Android
-      window.addEventListener('deviceorientationabsolute', (e) => {
-        gotAbsolute = true;
-        onOrientation(e);
-      }, true);
-      // Fallback for iOS (uses webkitCompassHeading) and non-absolute Android
-      window.addEventListener('deviceorientation', (e) => {
-        if (!gotAbsolute) onOrientation(e);
-      }, true);
-    }
-
+    bindSensors();
     permScreen.style.display = 'none';
     overlay.style.display    = 'flex';
     applyMeasuredDistance();
@@ -1230,14 +1232,6 @@
       errorMsg.textContent = err.message || 'Could not access camera or sensors.';
     }
   });
-
-  // Returning from the AR page with a measurement: resume straight into the
-  // app (skipping the Start tap) so we land on the right tab with the distance
-  // already filled. If auto-start is blocked (e.g. needs a gesture), the
-  // permission screen stays and the measurement is applied on manual Start.
-  if (pendingMeasure()) {
-    startApp().catch(() => { startBtn.disabled = false; });
-  }
 
   // ---------- Orientation ----------
   function onOrientation(e) {
@@ -1749,6 +1743,26 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
   }
+
+  // ---------- Resume after returning from the AR page ----------
+  // If we came back from ar.html with ?d=…&return=…, open the requested tab
+  // IMMEDIATELY (angles work without the camera) and fill the distance. The
+  // camera is then restored in the background — permission is already granted
+  // from the AR session, so it normally returns without another Start tap.
+  (function resumeFromAR() {
+    const pm = pendingMeasure();
+    if (!pm) return;
+    try {
+      history.replaceState({}, '', location.pathname);   // clean the URL
+      permScreen.style.display = 'none';
+      overlay.style.display    = 'flex';
+      bindSensors();
+      fillDistance(pm.m, pm.ret);                         // sets the tab + fills field
+      acquireCamera().catch(() => toast('Camera blocked — reopen the app to enable it'));
+    } catch (err) {
+      toast('Resume failed: ' + (err.message || err));
+    }
+  })();
 </script>
 </body>
 </html>
