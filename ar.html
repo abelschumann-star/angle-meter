@@ -164,13 +164,7 @@
 
       refSpace    = await session.requestReferenceSpace('local');
       viewerSpace = await session.requestReferenceSpace('viewer');
-      // Ray straight ahead from the viewer (down -Z) so the hit-test matches
-      // the center reticle, not an arbitrary screen point.
-      const ray = new XRRay(
-        { x: 0, y: 0, z: 0, w: 1 },
-        { x: 0, y: 0, z: -1, w: 0 }
-      );
-      hitSource   = await session.requestHitTestSource({ space: viewerSpace, offsetRay: ray });
+      hitSource   = await session.requestHitTestSource({ space: viewerSpace });
 
       hud.style.display = 'block';
       session.addEventListener('end', onEnd);
